@@ -18,6 +18,7 @@ uv run --locked python tools/runtime.py serve --port 8766
 ```
 
 The local service is at `http://127.0.0.1:8766`. It binds only to loopback. Keep it local. Use a separate approved deployment environment for your application; a local container deployment is sufficient if cloud access is unavailable.
+Docker alternative (same environment for every teammate): see `DOCKER.md`.
 Python 3.12 alternative with no installation of packages: `python3.12 tools/runtime.py serve --port 8766`.
 Select this project's `.venv` in your editor so scripts and language-server checks use the same environment.
 
