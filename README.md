@@ -18,6 +18,7 @@ uv run --locked python tools/runtime.py serve --port 8766
 ```
 
 The local service is at `http://127.0.0.1:8766`. It binds only to loopback. Keep it local. Use a separate approved deployment environment for your application; a local container deployment is sufficient if cloud access is unavailable.
+Docker alternative (same environment for every teammate): see `DOCKER.md`.
 Python 3.12 alternative with no installation of packages: `python3.12 tools/runtime.py serve --port 8766`.
 Select this project's `.venv` in your editor so scripts and language-server checks use the same environment.
 
@@ -30,6 +31,8 @@ In another terminal, retrieve `GET /health` and `GET /v1/cases`. Read `data/dev/
 Emit a JSON array following `docs/OUTPUT_CONTRACT.md`, then run:
 
 ```sh
+uv run --locked python -m unittest                # our tests (rules, tools, ingestion, end to end)
+uv run --locked python -m app.run                 # with the service running: writes submissions/results.json
 uv run --locked python tools/evaluate.py --data data/dev --gold feedback/dev_gold.json --submission submissions/results.json --report reports/dev.json
 ```
 

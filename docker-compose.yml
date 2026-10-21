@@ -1,0 +1,34 @@
+# Two containers sharing one network namespace:
+#   mock - the fictional enterprise service on 127.0.0.1:8766 (loopback only, as the package requires)
+#   dev  - your working shell; reaches the mock at http://127.0.0.1:8766
+# The repo is bind-mounted at /app, so edits on the host appear immediately in both.
+# State (mock.sqlite, app.sqlite) lives in the named volume "kyc-state", not in git.
+x-common: &common
+  image: kyc-capstone:dev
+  build: .
+  working_dir: /app
+  volumes:
+    - .:/app
+    - kyc-state:/app/.state
+
+services:
+  mock:
+    <<: *common
+    command: ["uv", "run", "--locked", "python", "tools/runtime.py", "serve", "--port", "8766"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8766/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  dev:
+    <<: *common
+    command: ["sleep", "infinity"]
+    network_mode: "service:mock"
+    depends_on:
+      mock:
+        condition: service_healthy
+
+volumes:
+  kyc-state:
