@@ -17,6 +17,7 @@ raise it with the facilitator.
 | 6 | Duplicates | Keep the original packet, set aside repeats, similar names stay separate | Yes. **Use the supplied case/review ID to identify the review** | Dedupe key = case ID only. No fuzzy matching on names |
 | 7 | AI-written summary | AI drafts the narrative, rules decide routing, analysts decide | OK | See 3.4 |
 | 8 | Success measure | Time savings, issue detection, or both | **Time is the main concern, but we must not miss things by going faster** | Primary KPI: time per review. Guardrail: no missed escalations (see 4) |
+| 9 | Size for this phase | One analyst, one worker, one case at a time | **Scope for five users working concurrently** (Diego Hernandez). Typical enterprise growth: 5-20 users first, then batches of 10-100, rarely shrinking | Design for 5 concurrent reviews now; keep the design able to grow in batches (see 3.5) |
 
 ## 2. Scope
 
@@ -68,6 +69,23 @@ through the screening service's `match_type`; we do no name matching ourselves. 
   or calls a near-match a confirmed identity.
 - Review a sample of outputs by hand regularly (the first ten, then periodically).
 
+### 3.5 Capacity: five concurrent users now, growth in batches later
+- Target for this phase: **5 reviews in flight at once**, one per user. This is a planning number,
+  not a measured result. We will test it (5 parallel cases on the dev set) and report the real latency.
+- Concurrency rules to enforce, because five users can touch the same case:
+  - One in-flight run per case ID. A second request for the same case is a duplicate: keep the
+    original packet, set the repeat aside (decision 6). Enforce with a unique constraint, not just a check.
+  - Retry counts are per case and tool (the mock counts attempts per case and tool, and the counter
+    survives restarts), so two simultaneous runs of one case would exhaust retries early.
+  - The workflow stays stateless apart from the database, so any number of workers can run it.
+- SQLite is enough for 5 users on one machine: WAL mode, short write transactions, a busy timeout.
+  Revisit when any of these happens: more than one app host, sustained write waits in the metrics
+  below, or the user base reaches the next batch (around 20). The storage interface exists so the
+  switch to Postgres is a new adapter, not a rewrite.
+- Growth is uneven and mostly one-way (Diego): plan for retention and trace volume to keep
+  growing, and for the upstream tools and any LLM to become the first limits, ahead of our database.
+  Measure those before promising anything for larger batches.
+
 ## 4. Metrics: anything that skips normal work gets counted (Diego's advice)
 
 Recorded as structured, redacted trace events and summarized per run:
@@ -82,6 +100,7 @@ Recorded as structured, redacted trace events and summarized per run:
 | Narrative fell back to template / validator rejections (with reason) | AI quality and cost of the AI path |
 | Route distribution (complete / request / EDD / escalate) | Always-escalate or never-escalate drift |
 | Seconds per case, tool calls per case, LLM tokens if used | Time KPI; measured, never invented |
+| Reviews in flight, wait time before a run starts, database busy/locked retries | Whether 5 concurrent users is comfortable and when to move off SQLite |
 
 **Baseline:** no baseline exists at the bank. Our first run on the dev set is the baseline; real
 time savings need a pilot with analysts. Guardrail for "do not miss things": on dev gold, no case
@@ -100,5 +119,8 @@ may be routed less severely than expected.
 
 - Admin dashboard for policy and threshold versions. Negotiate scope: policy versions and effective
   dates yes; agent prompts and scoring rubrics for regulatory review should not be freely editable.
-- Postgres adapter behind the storage interface; queue and workers for volume.
+- Postgres adapter behind the storage interface; queue and workers for volume. Triggers: second app
+  host, sustained database waits, or the next user batch (roughly 20 users and up).
+- Rollout in batches: onboard each new group of users with a check of the in-flight, wait-time and
+  fallback metrics before the next batch.
 - Pilot with real analysts to establish time-saved and detection baselines.
