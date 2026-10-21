@@ -18,7 +18,7 @@ UNTRUSTED = "untrusted"
 @dataclass(frozen=True)
 class Source:
     source_id: str
-    kind: str  # policy | procedure | document
+    kind: str  # policy | procedure | document | tool
     trust: str  # trusted | untrusted
     title: str | None
     path: str
@@ -44,6 +44,7 @@ class Document:
     is_intake: bool
     review_date: date | None
     entity_ref: str | None
+    identity_status: str | None = None  # intake "Identity document:" value, e.g. "attached"
 
 
 @dataclass(frozen=True)

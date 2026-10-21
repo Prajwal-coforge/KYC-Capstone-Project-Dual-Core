@@ -31,6 +31,8 @@ In another terminal, retrieve `GET /health` and `GET /v1/cases`. Read `data/dev/
 Emit a JSON array following `docs/OUTPUT_CONTRACT.md`, then run:
 
 ```sh
+uv run --locked python -m unittest                # our tests (rules, tools, ingestion, end to end)
+uv run --locked python -m app.run                 # with the service running: writes submissions/results.json
 uv run --locked python tools/evaluate.py --data data/dev --gold feedback/dev_gold.json --submission submissions/results.json --report reports/dev.json
 ```
 

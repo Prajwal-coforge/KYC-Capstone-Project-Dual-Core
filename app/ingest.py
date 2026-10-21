@@ -20,10 +20,9 @@ import urllib.request
 from pathlib import Path
 
 from .parsing import IngestError, ParsedFile, parse_file
-from .sqlite_store import SqliteKnowledgeStore
+from .sqlite_store import SCHEMA_VERSION, SqliteKnowledgeStore
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_VERSION = "1"
 
 
 def discover(data_dir: Path) -> list[ParsedFile]:
@@ -94,7 +93,7 @@ def ingest(data_dir: Path, store: SqliteKnowledgeStore, api_url: str | None = No
                             "case IDs derived from source IDs instead")
     manifest = manifest_hash(parsed)
     diff = store.replace_all(parsed, {
-        "data_dir": str(data_dir), "manifest_sha256": manifest, "schema_version": SCHEMA_VERSION,
+        "data_dir": str(data_dir), "manifest_sha256": manifest, "schema_version": str(SCHEMA_VERSION),
         "case_links_from_service": str(linked).lower()})
     return {"data_dir": str(data_dir), "manifest_sha256": manifest, "case_links_from_service": linked,
             **{k: len(v) for k, v in diff.items()}, "changed_ids": diff["added"] + diff["updated"],

@@ -15,7 +15,7 @@ FIELD_RE = re.compile(r"^([A-Za-z][A-Za-z ]*?):[ \t]*(\S.*?)[ \t]*$")
 
 POLICY_FIELDS = ("entity type", "jurisdiction", "effective from", "effective through",
                  "edd monthly threshold")
-DOCUMENT_FIELDS = ("review date", "entity reference")
+DOCUMENT_FIELDS = ("review date", "entity reference", "identity document")
 
 
 class IngestError(ValueError):
@@ -108,7 +108,8 @@ def parse_file(path: Path, folder: str) -> ParsedFile:
         review_date = (_iso_date(meta["review date"], "Review date", where)
                        if "review date" in meta else None)
         document = Document(source_id, case_id or None, doc_type.lower() or None,
-                            doc_type.upper() == "INTAKE", review_date, meta.get("entity reference"))
+                            doc_type.upper() == "INTAKE", review_date, meta.get("entity reference"),
+                            meta.get("identity document"))
         source = Source(source_id, "document", UNTRUSTED, title, str(path), content, digest)
         return ParsedFile(source, document=document, chunks=chunk_paragraphs(source_id, content),
                           warnings=warnings)

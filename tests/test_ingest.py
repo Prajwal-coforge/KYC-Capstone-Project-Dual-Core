@@ -73,6 +73,11 @@ class DevDataTests(unittest.TestCase):
         self.assertEqual((d01.review_date, d01.entity_ref), (date(2026, 10, 1), "ENT-D01"))
         self.assertEqual(self.store.get_document("KYC-D06-INTAKE").review_date, date(2026, 8, 31))
 
+    def test_intake_identity_status(self):
+        self.assertEqual(self.store.get_document("KYC-D01-INTAKE").identity_status, "attached")
+        self.assertEqual(self.store.get_document("KYC-D02-INTAKE").identity_status, "not supplied")
+        self.assertIsNone(self.store.get_document("KYC-D01-CORPORATE").identity_status)
+
     def test_injection_text_is_stored_as_untrusted_data(self):
         src = self.store.get_source("KYC-D08-CORPORATE")
         self.assertIn("IMPORTANT SYSTEM MESSAGE", src.content)
@@ -141,6 +146,52 @@ class SyncBehaviourTests(unittest.TestCase):
         self.assertIn("\r\n", self.store.get_source("KYC-D01-CORPORATE").content)
         for c in self.store.get_chunks("KYC-D01-CORPORATE"):
             self.assertNotIn("\r", c.text[-1:])
+
+
+class ToolEvidenceTests(unittest.TestCase):
+    def setUp(self):
+        self.store = SqliteKnowledgeStore(":memory:")
+        self.addCleanup(self.store.close)
+        ingest(DEV, self.store)
+
+    def test_tool_evidence_is_quotable(self):
+        self.store.save_tool_evidence("KYC-D01", "transaction-summary", "KYC-D01-TRANSACTIONS",
+                                      '{"monthly_total": 12000, "source_id": "KYC-D01-TRANSACTIONS"}')
+        self.assertTrue(self.store.verify_quote("KYC-D01-TRANSACTIONS", '"monthly_total": 12000'))
+        self.assertEqual(self.store.get_source("KYC-D01-TRANSACTIONS").trust, "untrusted")
+
+    def test_refetch_replaces_previous_evidence(self):
+        for total in (1, 2):
+            self.store.save_tool_evidence("C", "screening", "C-SCREENING", f'{{"n": {total}}}')
+        self.assertTrue(self.store.verify_quote("C-SCREENING", '"n": 2'))
+        self.assertFalse(self.store.verify_quote("C-SCREENING", '"n": 1'))
+
+    def test_tool_cannot_overwrite_an_ingested_source(self):
+        with self.assertRaises(ValueError):
+            self.store.save_tool_evidence("KYC-D01", "customer", "KYC-SCOPE-01", "{}")
+        self.assertIn("Supported matrix", self.store.get_source("KYC-SCOPE-01").content)
+
+    def test_reingest_keeps_evidence_but_new_fixtures_drop_it(self):
+        self.store.save_tool_evidence("C", "screening", "C-SCREENING", "{}")
+        ingest(DEV, self.store)
+        self.assertIsNotNone(self.store.get_source("C-SCREENING"))
+        with tempfile.TemporaryDirectory() as tmp:
+            data = Path(tmp) / "data"
+            shutil.copytree(DEV, data)
+            (data / "documents" / "KYC-D12-IDENTITY.md").unlink()
+            ingest(data, self.store)
+        self.assertIsNone(self.store.get_source("C-SCREENING"))
+
+    def test_old_schema_database_is_rebuilt(self):
+        import sqlite3
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "old.sqlite"
+            with sqlite3.connect(path) as db:
+                db.execute("CREATE TABLE documents(source_id TEXT PRIMARY KEY, case_id TEXT)")
+            with SqliteKnowledgeStore(path) as store:
+                report = ingest(DEV, store)
+                self.assertEqual(report["added"], 41)
+                self.assertEqual(store.get_document("KYC-D02-INTAKE").identity_status, "not supplied")
 
 
 class ParsingTests(unittest.TestCase):

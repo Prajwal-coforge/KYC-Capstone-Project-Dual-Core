@@ -5,6 +5,7 @@ This database belongs to the application. It is separate from the mock service's
 """
 from __future__ import annotations
 
+import hashlib
 import sqlite3
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -13,11 +14,17 @@ from typing import Iterable
 from .models import Chunk, Document, Policy, Source
 from .parsing import ParsedFile
 
+# Bump when the schema changes. Everything stored is derived (re-ingested or re-fetched), so an
+# older database is simply rebuilt.
+SCHEMA_VERSION = 2
+TABLES = ("tool_evidence", "chunks", "documents", "policies", "sources", "meta")
+INGESTED_KINDS = ("policy", "procedure", "document")
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS sources(
   source_id TEXT PRIMARY KEY,
-  kind      TEXT NOT NULL CHECK(kind IN ('policy','procedure','document')),
+  kind      TEXT NOT NULL CHECK(kind IN ('policy','procedure','document','tool')),
   trust     TEXT NOT NULL CHECK(trust IN ('trusted','untrusted')),
   title     TEXT,
   path      TEXT NOT NULL,
@@ -40,7 +47,8 @@ CREATE TABLE IF NOT EXISTS documents(
   doc_type    TEXT,
   is_intake   INTEGER NOT NULL DEFAULT 0,
   review_date TEXT,
-  entity_ref  TEXT
+  entity_ref  TEXT,
+  identity_status TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_documents_case ON documents(case_id);
 CREATE TABLE IF NOT EXISTS chunks(
@@ -51,6 +59,11 @@ CREATE TABLE IF NOT EXISTS chunks(
   end_offset   INTEGER NOT NULL,
   text         TEXT NOT NULL,
   PRIMARY KEY(source_id, chunk_no)
+);
+CREATE TABLE IF NOT EXISTS tool_evidence(
+  source_id TEXT PRIMARY KEY REFERENCES sources(source_id) ON DELETE CASCADE,
+  case_id   TEXT NOT NULL,
+  tool      TEXT NOT NULL
 );
 """
 
@@ -69,6 +82,10 @@ class SqliteKnowledgeStore:
         self.db.execute("PRAGMA foreign_keys = ON")
         if str(path) != ":memory:":
             self.db.execute("PRAGMA journal_mode = WAL")
+        if self.db.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
+            for table in TABLES:
+                self.db.execute(f"DROP TABLE IF EXISTS {table}")
+            self.db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         self.db.executescript(SCHEMA)
 
     def close(self) -> None:
@@ -94,8 +111,13 @@ class SqliteKnowledgeStore:
             raise ValueError("duplicate source IDs in input")
         self.db.execute("BEGIN IMMEDIATE")
         try:
-            existing = {r["source_id"]: r["sha256"]
-                        for r in self.db.execute("SELECT source_id, sha256 FROM sources")}
+            previous = self.db.execute(
+                "SELECT value FROM meta WHERE key='manifest_sha256'").fetchone()
+            if previous and previous["value"] != meta.get("manifest_sha256"):
+                # A different fixture set: tool evidence fetched for the old one is stale.
+                self.db.execute("DELETE FROM sources WHERE kind='tool'")
+            existing = {r["source_id"]: r["sha256"] for r in self.db.execute(
+                "SELECT source_id, sha256 FROM sources WHERE kind IN (?,?,?)", INGESTED_KINDS)}
             diff = {"added": [], "updated": [], "unchanged": [], "removed": []}
             for sid in sorted(set(existing) - set(incoming)):
                 self.db.execute("DELETE FROM sources WHERE source_id=?", (sid,))
@@ -134,9 +156,10 @@ class SqliteKnowledgeStore:
                              p.edd_threshold))
         if item.document:
             d = item.document
-            self.db.execute("INSERT INTO documents VALUES(?,?,?,?,?,?)",
+            self.db.execute("INSERT INTO documents VALUES(?,?,?,?,?,?,?)",
                             (d.source_id, d.case_id, d.doc_type, int(d.is_intake),
-                             d.review_date.isoformat() if d.review_date else None, d.entity_ref))
+                             d.review_date.isoformat() if d.review_date else None, d.entity_ref,
+                             d.identity_status))
         self.db.executemany("INSERT INTO chunks VALUES(?,?,?,?,?,?)",
                             [(c.source_id, c.chunk_no, c.start_line, c.start_offset,
                               c.end_offset, c.text) for c in item.chunks])
@@ -187,7 +210,28 @@ class SqliteKnowledgeStore:
             return None
         return Document(r["source_id"], r["case_id"], r["doc_type"], bool(r["is_intake"]),
                         date.fromisoformat(r["review_date"]) if r["review_date"] else None,
-                        r["entity_ref"])
+                        r["entity_ref"], r["identity_status"])
+
+    def save_tool_evidence(self, case_id: str, tool: str, source_id: str, content: str) -> None:
+        """Store a tool response as an untrusted source so citations to it can be verified.
+
+        `content` must already be redacted; restricted values are never written to disk.
+        """
+        digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            row = self.db.execute("SELECT kind FROM sources WHERE source_id=?", (source_id,)).fetchone()
+            if row and row["kind"] != "tool":
+                raise ValueError(f"{source_id} is already an ingested {row['kind']}")
+            self.db.execute("DELETE FROM sources WHERE source_id=?", (source_id,))
+            self.db.execute("INSERT INTO sources VALUES(?,?,?,?,?,?,?)",
+                            (source_id, "tool", "untrusted", tool, f"api:{case_id}/{tool}",
+                             content, digest))
+            self.db.execute("INSERT INTO tool_evidence VALUES(?,?,?)", (source_id, case_id, tool))
+            self.db.execute("COMMIT")
+        except BaseException:
+            self.db.execute("ROLLBACK")
+            raise
 
     def get_chunks(self, source_id: str) -> list[Chunk]:
         rows = self.db.execute("SELECT * FROM chunks WHERE source_id=? ORDER BY chunk_no",
@@ -204,7 +248,8 @@ class SqliteKnowledgeStore:
 
     def counts(self) -> dict[str, int]:
         return {k: self.db.execute(q).fetchone()[0] for k, q in {
-            "sources": "SELECT COUNT(*) FROM sources",
+            "sources": "SELECT COUNT(*) FROM sources WHERE kind != 'tool'",
+            "tool_sources": "SELECT COUNT(*) FROM sources WHERE kind = 'tool'",
             "policies": "SELECT COUNT(*) FROM policies",
             "documents": "SELECT COUNT(*) FROM documents",
             "chunks": "SELECT COUNT(*) FROM chunks"}.items()}
