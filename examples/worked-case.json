@@ -1,0 +1,71 @@
+[
+  {
+    "case_id": "KYC-D01",
+    "classification": "kyc_review",
+    "routing": "complete_review",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-D01",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "policy_and_routing",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Entity type: limited_company"
+      },
+      {
+        "claim": "policy_and_routing",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "case_evidence",
+        "source_id": "KYC-D01-INTAKE",
+        "quote": "The business account for Juniper Workshop D01 is due for periodic review. Prepare evidence and unresolved questions for the analyst; the customer relationship remains unchanged."
+      },
+      {
+        "claim": "case_evidence",
+        "source_id": "KYC-D01-CORPORATE",
+        "quote": "Juniper Workshop D01 manufactures household fittings. Filing jurisdiction: Alder."
+      },
+      {
+        "claim": "case_evidence",
+        "source_id": "KYC-D01-IDENTITY",
+        "quote": "Fictional identity evidence"
+      },
+      {
+        "claim": "enterprise_evidence",
+        "source_id": "KYC-D01-CUSTOMER",
+        "quote": "\"entity_id\": \"ENT-D01\""
+      },
+      {
+        "claim": "enterprise_evidence",
+        "source_id": "KYC-D01-REGISTRY",
+        "quote": "\"registered_address\": \"100 Orchard Walk, Alder\""
+      },
+      {
+        "claim": "enterprise_evidence",
+        "source_id": "KYC-D01-SCREENING",
+        "quote": "\"matches\": []"
+      },
+      {
+        "claim": "enterprise_evidence",
+        "source_id": "KYC-D01-TRANSACTIONS",
+        "quote": "\"monthly_total\": 12000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "Draft KYC review packet for ENT-D01. Recommendation: complete_review; human analyst retains all customer decisions. No customer has been approved or rejected."
+  }
+]
