@@ -134,6 +134,37 @@ class ToolClientTests(unittest.TestCase):
         for name in ("create_record", "approve", "reject", "post_record"):
             self.assertFalse(hasattr(ToolClient, name), name)
 
+    def test_backoff_between_retries_is_exponential(self):
+        fake, client = self.serve([TIMEOUT])
+        delays = []
+        client.sleep = delays.append
+        client.backoff_seconds = 0.2
+        client.fetch("C1", "customer")
+        self.assertEqual(delays, [0.2, 0.4])
+        self.assertEqual(fake.count(PATH), 3)
+
+    def test_open_circuit_skips_http_until_cooldown_then_one_probe(self):
+        fake, client = self.serve([TIMEOUT, TIMEOUT, TIMEOUT, (200, GOOD)])
+        clock = {"t": 0.0}
+        client._now = lambda: clock["t"]
+        client.sleep = lambda _delay: None
+        client.backoff_seconds = 0.2
+        client.circuit_cooldown = 30.0
+        first = client.fetch("C1", "customer")
+        self.assertEqual((first.ok, first.attempts, first.circuit), (False, 3, "closed"))
+        blocked = client.fetch("C1", "customer")
+        self.assertEqual((blocked.ok, blocked.attempts, blocked.error, blocked.circuit),
+                         (False, 0, "circuit_open", "open"))
+        self.assertEqual(fake.count(PATH), 3)
+        clock["t"] = 30.0
+        probe = client.fetch("C1", "customer")
+        self.assertTrue(probe.ok)
+        self.assertEqual(probe.circuit, "half_open")
+        self.assertEqual(fake.count(PATH), 4)
+        again = client.fetch("C1", "customer")
+        self.assertTrue(again.ok)
+        self.assertEqual(again.circuit, "closed")
+
 
 if __name__ == "__main__":
     unittest.main()
