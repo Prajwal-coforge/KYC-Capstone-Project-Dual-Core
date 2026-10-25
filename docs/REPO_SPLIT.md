@@ -24,28 +24,30 @@ git add AGENTS.md .cursor/rules/kyc-copilot.mdc \
   contracts/policy_manifest.json
 ```
 
-## On `docs/planning-distribution` (planning + 50–50 distribution)
+## On `docs/planning-distribution` (planning + lab + 50–50)
 
 | Path | Purpose |
 |---|---|
-| `docs/DAYWISE_PLAN.md` | Week schedule |
+| `docs/WEEK10_LAB.md` | **Today:** Week 10 harden lab + PDF order |
+| `docs/DAYWISE_PLAN.md` | Schedule (lab-first) |
 | `docs/VIDHI_CHECKLIST.md` | Vidhi 50% |
 | `docs/PRAJWAL_CHECKLIST.md` | Prajwal 50% |
-| `docs/ALIGNMENT.md` | Whiteboard × ENG-01 × docs |
+| `docs/ALIGNMENT.md` | Whiteboard × ENG-01 |
 | `docs/RULES_CATALOG.md` | Rule ↔ test index |
-| `docs/RUNBOOK.md` | Operator/deploy notes |
-| `docs/EVALUATION.md` | Scores (fill later) |
-| `docs/LIMITATIONS_AND_ROADMAP.md` | Limits / roadmap |
+| `docs/RUNBOOK.md` | Ops + severe injection runbook |
+| `docs/EVALUATION.md` | Scores + SLO metrics |
+| `docs/LIMITATIONS_AND_ROADMAP.md` | Limits |
 | `docs/CONTRIBUTIONS.md` | Who did what |
-| `docs/client-updates/` | Diego email drafts |
+| `docs/client-updates/` | Diego drafts |
 
 Suggested add when committing planning:
 
 ```sh
 git checkout docs/planning-distribution
-git add docs/DAYWISE_PLAN.md docs/VIDHI_CHECKLIST.md docs/PRAJWAL_CHECKLIST.md \
-  docs/ALIGNMENT.md docs/RULES_CATALOG.md docs/RUNBOOK.md docs/EVALUATION.md \
-  docs/LIMITATIONS_AND_ROADMAP.md docs/CONTRIBUTIONS.md docs/client-updates
+git add docs/WEEK10_LAB.md docs/DAYWISE_PLAN.md docs/VIDHI_CHECKLIST.md \
+  docs/PRAJWAL_CHECKLIST.md docs/ALIGNMENT.md docs/RULES_CATALOG.md \
+  docs/RUNBOOK.md docs/EVALUATION.md docs/LIMITATIONS_AND_ROADMAP.md \
+  docs/CONTRIBUTIONS.md docs/client-updates docs/REPO_SPLIT.md
 ```
 
 ## Never stage (either branch)

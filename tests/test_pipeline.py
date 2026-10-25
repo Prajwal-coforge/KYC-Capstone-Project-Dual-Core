@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from app.ingest import ingest
-from app.run import main as run_main, review_cases
+from app.run import draft_hash, main as run_main, review_cases, submit_drafts
 from app.sqlite_store import SqliteKnowledgeStore
 from app.tools_client import ToolClient
 from tests.helpers import DEV, ROOT, MockService, load_tool
@@ -150,10 +150,54 @@ class ReviewFlowAndCli(unittest.TestCase):
         self.assertFalse({"record_created", "human_approved", "forbidden_write_attempt",
                           "unapproved_write_attempt", "unsupported_write_attempt"} & set(events))
 
+    def test_second_identical_submit_reuses_the_same_review(self):
+        out = self.dir / "results.json"
+        args = ["--api-url", self.mock.url, "--db", str(self.dir / "app.sqlite"), "--out", str(out),
+                "--cases", "KYC-D01", "--submit-reviews"]
+        run_main(args)
+        first = json.loads((self.dir / "reviews.json").read_text())
+        run_main(args)
+        second = json.loads((self.dir / "reviews.json").read_text())
+        packet = json.loads(out.read_text())[0]
+        self.assertEqual(len(second), 1)
+        self.assertTrue(second[0]["reused"])
+        self.assertEqual(second[0]["review_id"], first[0]["review_id"])
+        self.assertEqual(second[0]["draft_hash"], self.mock.runtime.digest(packet))
+        requested = [e for e in self.mock.audit() if e["event"] == "review_requested"]
+        self.assertEqual(len(requested), 1)
+
     def test_cli_refuses_the_mock_state_file(self):
         with self.assertRaises(SystemExit):
             run_main(["--api-url", self.mock.url, "--db", str(self.dir / "mock.sqlite"),
                       "--out", str(self.dir / "r.json")])
+
+
+class ReviewLedgerTests(unittest.TestCase):
+    def test_identical_draft_posts_once_and_a_changed_draft_posts_again(self):
+        class FakeClient:
+            def __init__(self):
+                self.posts = []
+
+            def submit_review(self, case_id, draft):
+                self.posts.append(draft_hash(draft))
+                return {"review_id": f"rev_{len(self.posts)}", "status": "pending",
+                        "draft_hash": draft_hash(draft)}
+
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        ledger = Path(tmp.name) / "review_ledger.json"
+        client = FakeClient()
+        same = {"case_id": "KYC-D01", "routing": "complete_review"}
+        changed = {"case_id": "KYC-D01", "routing": "escalate"}
+        first = submit_drafts(client, [same], ledger)
+        second = submit_drafts(client, [same], ledger)
+        third = submit_drafts(client, [changed], ledger)
+        self.assertEqual(len(client.posts), 2)
+        self.assertFalse(first[0].get("reused"))
+        self.assertTrue(second[0]["reused"])
+        self.assertEqual(second[0]["review_id"], first[0]["review_id"])
+        self.assertFalse(third[0].get("reused"))
+        self.assertNotEqual(third[0]["review_id"], first[0]["review_id"])
 
 
 if __name__ == "__main__":
