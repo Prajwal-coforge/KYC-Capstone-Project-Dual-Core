@@ -134,6 +134,68 @@ class ToolClientTests(unittest.TestCase):
         for name in ("create_record", "approve", "reject", "post_record"):
             self.assertFalse(hasattr(ToolClient, name), name)
 
+    def test_backoff_between_retries_is_exponential(self):
+        fake, client = self.serve([TIMEOUT])
+        delays = []
+        client.sleep = delays.append
+        client.backoff_seconds = 0.2
+        client.fetch("C1", "customer")
+        self.assertEqual(delays, [0.2, 0.4])
+        self.assertEqual(fake.count(PATH), 3)
+
+    def test_open_circuit_skips_http_until_cooldown_then_one_probe(self):
+        fake, client = self.serve([TIMEOUT, TIMEOUT, TIMEOUT, (200, GOOD)])
+        clock = {"t": 0.0}
+        client._now = lambda: clock["t"]
+        client.sleep = lambda _delay: None
+        client.backoff_seconds = 0.2
+        client.circuit_cooldown = 30.0
+        first = client.fetch("C1", "customer")
+        self.assertEqual((first.ok, first.attempts, first.circuit), (False, 3, "open"))
+        blocked = client.fetch("C1", "customer")
+        self.assertEqual((blocked.ok, blocked.attempts, blocked.error, blocked.circuit),
+                         (False, 0, "circuit_open", "open"))
+        self.assertEqual(fake.count(PATH), 3)
+        clock["t"] = 30.0
+        probe = client.fetch("C1", "customer")
+        self.assertTrue(probe.ok)
+        self.assertEqual(probe.circuit, "half_open")
+        self.assertEqual(fake.count(PATH), 4)
+        again = client.fetch("C1", "customer")
+        self.assertTrue(again.ok)
+        self.assertEqual(again.circuit, "closed")
+
+    def test_not_found_leaves_the_breaker_closed(self):
+        fake, client = self.serve([(404, {"error": "not_found"}), (200, GOOD)])
+        missed = client.fetch("C1", "customer")
+        self.assertEqual((missed.ok, missed.attempts, missed.error, missed.circuit),
+                         (False, 1, "not_found", "closed"))
+        again = client.fetch("C1", "customer")
+        self.assertTrue(again.ok)
+        self.assertEqual(again.circuit, "closed")
+        self.assertEqual(fake.count(PATH), 2)
+
+    def test_next_case_can_call_a_tool_the_previous_case_exhausted(self):
+        d07 = "/v1/cases/KYC-D07/registry"
+        d11 = "/v1/cases/KYC-D11/registry"
+        fake = FakeService({
+            d07: [TIMEOUT],
+            d11: [(200, {"source_id": "KYC-D11-REGISTRY", "entity_id": "ENT-11"})],
+        })
+        self.addCleanup(fake.stop)
+        client = ToolClient(fake.url, timeout=2)
+        client.sleep = lambda _delay: None
+        client.backoff_seconds = 0.2
+        failed = client.fetch("KYC-D07", "registry")
+        self.assertEqual((failed.ok, failed.attempts, failed.circuit), (False, 3, "open"))
+        self.assertEqual(fake.count(d07), 3)
+        client.reset_circuits()  # gather_evidence does this at the start of the next case
+        nxt = client.fetch("KYC-D11", "registry")
+        self.assertTrue(nxt.ok)
+        self.assertEqual(nxt.circuit, "closed")
+        self.assertEqual(nxt.attempts, 1)
+        self.assertEqual(fake.count(d11), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

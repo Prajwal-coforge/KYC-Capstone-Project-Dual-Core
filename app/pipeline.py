@@ -22,6 +22,9 @@ class CaseRun:
 
 def gather_evidence(case_id: str, client: ToolClient, store: KnowledgeStore
                     ) -> tuple[CaseEvidence, dict[str, ToolResult], str | None]:
+    reset = getattr(client, "reset_circuits", None)
+    if reset is not None:
+        reset()
     intake = None
     identity_present = False
     for source in store.case_documents(case_id):

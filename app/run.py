@@ -20,6 +20,7 @@ from .parsing import IngestError
 from .pipeline import CaseRun, review_case
 from .sqlite_store import SqliteKnowledgeStore
 from .tools_client import ServiceError, ToolClient
+from .tracing import JsonlTrace, metrics, trace_events
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -107,6 +108,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--db", type=Path, default=ROOT / ".state" / "app.sqlite")
     p.add_argument("--out", type=Path, default=ROOT / "submissions" / "results.json")
     p.add_argument("--cases", nargs="*", help="case IDs (default: every case the service lists)")
+    p.add_argument("--trace", type=Path, default=None,
+                   help="JSONL trace path (default: trace.jsonl next to --out)")
     p.add_argument("--submit-reviews", action="store_true",
                    help="POST each new draft to /v1/reviews; reuse an identical draft from review_ledger.json")
     a = p.parse_args(argv)
@@ -125,11 +128,24 @@ def main(argv: list[str] | None = None) -> None:
     packets = [r.packet for r in runs]
     a.out.parent.mkdir(parents=True, exist_ok=True)
     a.out.write_text(json.dumps(packets, indent=2, ensure_ascii=False) + "\n")
+    trace_path = a.trace or a.out.parent / "trace.jsonl"
+    if trace_path.exists():
+        trace_path.unlink()
+    sink = JsonlTrace(trace_path)
+    decisions = []
+    for r in runs:
+        sink.write_run(r)
+        decisions.extend(e for e in trace_events(r) if e["event"] == "decision")
+    summary = metrics(decisions)
+    sink.write(summary)
     for r in runs:
         attempts = {t: res.attempts for t, res in r.tool_results.items()}
         print(f"{r.packet['case_id']}: {r.packet['routing']:<23} {r.seconds * 1000:7.1f} ms  "
               f"attempts={attempts}")
     print(f"Wrote {len(packets)} packets to {a.out}")
+    print(f"Trace: {trace_path}")
+    print(f"Metrics: success_rate={summary['success_rate']:.0%}  p95_ms={summary['p95_ms']}  "
+          f"alert={summary['alert']}  reason={summary['alert_reason']}")
 
     if a.submit_reviews:
         ledger_path = a.out.parent / "review_ledger.json"

@@ -38,19 +38,60 @@ class ToolResult:
     attempts: int
     error: str | None = None
     seconds: float = 0.0
+    circuit: str = "closed"  # closed | open | half_open
 
     @property
     def source_id(self) -> str | None:
         return self.payload.get("source_id") if self.payload else None
 
 
+class _Circuit:
+    """Per-tool breaker. Opens after one exhausted fetch. One probe after cooldown."""
+
+    def __init__(self):
+        self.opened_at: float | None = None
+        self.probing = False
+
+    def state(self, now: float, cooldown: float) -> str:
+        if self.opened_at is None:
+            return "closed"
+        if now - self.opened_at >= cooldown and not self.probing:
+            return "half_open"
+        return "open"
+
+    def before_call(self, now: float, cooldown: float) -> str | None:
+        """Return the circuit state if a call is allowed, else None."""
+        state = self.state(now, cooldown)
+        if state == "open":
+            return None
+        if state == "half_open":
+            self.probing = True
+        return state
+
+    def succeed(self) -> None:
+        self.opened_at = None
+        self.probing = False
+
+    def fail(self, now: float) -> None:
+        self.opened_at = now
+        self.probing = False
+
+
 class ToolClient:
     def __init__(self, base_url: str, timeout: float = 5.0, max_attempts: int = MAX_ATTEMPTS,
-                 backoff_seconds: float = 0.0):
+                 backoff_seconds: float = 0.05, circuit_cooldown: float = 30.0):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.max_attempts = max_attempts
         self.backoff_seconds = backoff_seconds
+        self.circuit_cooldown = circuit_cooldown
+        self._circuits: dict[str, _Circuit] = {}
+        self._now = time.monotonic
+        self.sleep = time.sleep
+
+    def reset_circuits(self) -> None:
+        """Start a new case with a closed breaker. A second fetch in the same case still trips it."""
+        self._circuits.clear()
 
     def _request(self, method: str, path: str, body: Any = None) -> Any:
         data = None if body is None else json.dumps(body).encode("utf-8")
@@ -75,22 +116,30 @@ class ToolClient:
     def fetch(self, case_id: str, tool: str) -> ToolResult:
         if tool not in TOOLS:
             raise ValueError(f"unknown tool: {tool}")
+        circuit = self._circuits.setdefault(tool, _Circuit())
+        now = self._now()
+        state = circuit.before_call(now, self.circuit_cooldown)
+        if state is None:
+            return ToolResult(tool, False, None, 0, "circuit_open", 0.0, "open")
         path = f"/v1/cases/{urllib.parse.quote(case_id, safe='')}/{tool}"
-        started = time.monotonic()
+        started = self._now()
         error = None
         for attempt in range(1, self.max_attempts + 1):
             try:
                 payload = self._request("GET", path)
                 if not isinstance(payload, dict) or not isinstance(payload.get("source_id"), str):
                     raise _Retryable("invalid_response")
-                return ToolResult(tool, True, payload, attempt, None, time.monotonic() - started)
+                circuit.succeed()
+                return ToolResult(tool, True, payload, attempt, None, self._now() - started, state)
             except _Final as exc:
-                return ToolResult(tool, False, None, attempt, exc.error, time.monotonic() - started)
+                circuit.succeed()  # 404/400 are not an outage; do not open the breaker
+                return ToolResult(tool, False, None, attempt, exc.error, self._now() - started, state)
             except _Retryable as exc:
                 error = exc.error
                 if attempt < self.max_attempts and self.backoff_seconds:
-                    time.sleep(self.backoff_seconds * attempt)
-        return ToolResult(tool, False, None, self.max_attempts, error, time.monotonic() - started)
+                    self.sleep(self.backoff_seconds * (2 ** (attempt - 1)))
+        circuit.fail(self._now())
+        return ToolResult(tool, False, None, self.max_attempts, error, self._now() - started, "open")
 
     def list_cases(self) -> list[dict]:
         return self._request("GET", "/v1/cases")["cases"]
