@@ -3,12 +3,14 @@
     uv run --locked python -m app.run --api-url http://127.0.0.1:8766
     uv run --locked python -m app.run --cases KYC-D01 --submit-reviews
 
-Writes a JSON array (docs/OUTPUT_CONTRACT.md) to --out. With --submit-reviews, each draft is
-sent to POST /v1/reviews for a human; approval happens only through the operator CLI.
+Writes a JSON array (docs/OUTPUT_CONTRACT.md) to --out. With --submit-reviews, each new draft is
+sent to POST /v1/reviews for a human. An identical case id and draft hash is reused from
+review_ledger.json and is not posted again. Approval happens only through the operator CLI.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -31,6 +33,73 @@ def run_cases(case_ids: list[str], client: ToolClient, store: SqliteKnowledgeSto
     return [review_case(cid, client, store) for cid in dict.fromkeys(case_ids)]
 
 
+def draft_hash(packet: dict) -> str:
+    """SHA-256 of the draft in the compact canonical JSON the review API hashes."""
+    raw = json.dumps(packet, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def load_review_ledger(path: Path) -> dict:
+    """Case id → draft hash → {review_id, status, draft_hash}. Missing file means no prior reviews."""
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Review ledger is unreadable: {path}") from exc
+    if not isinstance(data, dict):
+        raise ValueError(f"Review ledger is unreadable: {path}")
+    return data
+
+
+def _prior_review(ledger: dict, case_id: str, digest: str) -> dict | None:
+    by_case = ledger.get(case_id)
+    if by_case is None:
+        return None
+    if not isinstance(by_case, dict):
+        raise ValueError(f"Review ledger entry for {case_id} is unreadable")
+    hit = by_case.get(digest)
+    if hit is None:
+        return None
+    if not isinstance(hit, dict) or hit.get("draft_hash") != digest or not hit.get("review_id"):
+        raise ValueError(f"Review ledger entry for {case_id} is unreadable")
+    return hit
+
+
+def _save_review_ledger(path: Path, ledger: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(ledger, indent=2, ensure_ascii=False) + "\n")
+
+
+def submit_drafts(client: ToolClient, packets: list[dict], ledger_path: Path) -> list[dict]:
+    """Post each draft once. An identical case id + draft hash reuses the stored review."""
+    ledger = load_review_ledger(ledger_path)
+    reviews = []
+    for packet in packets:
+        case_id = packet["case_id"]
+        digest = draft_hash(packet)
+        prior = _prior_review(ledger, case_id, digest)
+        if prior:
+            reviews.append({"case_id": case_id, "review_id": prior["review_id"],
+                            "status": prior.get("status"), "draft_hash": digest, "reused": True})
+            continue
+        try:
+            body = client.submit_review(case_id, packet)
+        except ServiceError as exc:
+            reviews.append({"case_id": case_id, "error": exc.error})
+            continue
+        server_hash = body.get("draft_hash")
+        review_id = body.get("review_id")
+        if server_hash != digest or not review_id:
+            reviews.append({"case_id": case_id, "error": "draft_hash_mismatch"})
+            continue
+        entry = {"review_id": review_id, "status": body.get("status"), "draft_hash": digest}
+        ledger.setdefault(case_id, {})[digest] = entry
+        _save_review_ledger(ledger_path, ledger)
+        reviews.append({"case_id": case_id, **entry})
+    return reviews
+
+
 def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--api-url", default="http://127.0.0.1:8766")
@@ -39,7 +108,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--out", type=Path, default=ROOT / "submissions" / "results.json")
     p.add_argument("--cases", nargs="*", help="case IDs (default: every case the service lists)")
     p.add_argument("--submit-reviews", action="store_true",
-                   help="send each draft to POST /v1/reviews; writes reviews.json next to --out")
+                   help="POST each new draft to /v1/reviews; reuse an identical draft from review_ledger.json")
     a = p.parse_args(argv)
     if a.db.name == "mock.sqlite":
         sys.exit("Refusing to use the mock service's state file; choose another --db path.")
@@ -63,17 +132,16 @@ def main(argv: list[str] | None = None) -> None:
     print(f"Wrote {len(packets)} packets to {a.out}")
 
     if a.submit_reviews:
-        reviews = []
-        for packet in packets:
-            try:
-                body = client.submit_review(packet["case_id"], packet)
-                reviews.append({"case_id": packet["case_id"], **{k: body.get(k) for k in
-                                ("review_id", "status", "draft_hash")}})
-            except ServiceError as exc:
-                reviews.append({"case_id": packet["case_id"], "error": exc.error})
+        ledger_path = a.out.parent / "review_ledger.json"
+        try:
+            reviews = submit_drafts(client, packets, ledger_path)
+        except ValueError as exc:
+            sys.exit(str(exc))
         path = a.out.parent / "reviews.json"
         path.write_text(json.dumps(reviews, indent=2) + "\n")
-        print(f"Submitted {sum('review_id' in r for r in reviews)} drafts for human review; see {path}")
+        fresh = sum("review_id" in r and not r.get("reused") for r in reviews)
+        reused = sum(bool(r.get("reused")) for r in reviews)
+        print(f"Submitted {fresh} drafts for human review; reused {reused}; see {path}")
 
 
 if __name__ == "__main__":
