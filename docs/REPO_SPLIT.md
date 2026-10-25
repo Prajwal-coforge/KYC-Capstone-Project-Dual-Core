@@ -1,0 +1,53 @@
+# Repo split — what lives where
+
+**No commits are implied by this file.** When a human asks to commit, stage only the paths for the active branch purpose.
+
+## On `main` (bare minimum both of us need)
+
+Shared rules and consistency — every agent and both people follow these:
+
+| Path | Purpose |
+|---|---|
+| [`AGENTS.md`](../AGENTS.md) | Agent mandates + **git strategy** |
+| [`.cursor/rules/kyc-copilot.mdc`](../.cursor/rules/kyc-copilot.mdc) | Always-on Cursor agent rule |
+| [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) | Pipeline and layer rules |
+| [`docs/adr/`](adr/) | ADRs 0001–0005 |
+| [`contracts/policy_manifest.json`](../contracts/policy_manifest.json) | Approved policy digests |
+| [`docs/REPO_SPLIT.md`](REPO_SPLIT.md) | This split |
+
+Suggested add when committing rules to `main`:
+
+```sh
+git checkout main
+git add AGENTS.md .cursor/rules/kyc-copilot.mdc \
+  docs/ARCHITECTURE.md docs/adr docs/REPO_SPLIT.md \
+  contracts/policy_manifest.json
+```
+
+## On `docs/planning-distribution` (planning + 50–50 distribution)
+
+| Path | Purpose |
+|---|---|
+| `docs/DAYWISE_PLAN.md` | Week schedule |
+| `docs/VIDHI_CHECKLIST.md` | Vidhi 50% |
+| `docs/PRAJWAL_CHECKLIST.md` | Prajwal 50% |
+| `docs/ALIGNMENT.md` | Whiteboard × ENG-01 × docs |
+| `docs/RULES_CATALOG.md` | Rule ↔ test index |
+| `docs/RUNBOOK.md` | Operator/deploy notes |
+| `docs/EVALUATION.md` | Scores (fill later) |
+| `docs/LIMITATIONS_AND_ROADMAP.md` | Limits / roadmap |
+| `docs/CONTRIBUTIONS.md` | Who did what |
+| `docs/client-updates/` | Diego email drafts |
+
+Suggested add when committing planning:
+
+```sh
+git checkout docs/planning-distribution
+git add docs/DAYWISE_PLAN.md docs/VIDHI_CHECKLIST.md docs/PRAJWAL_CHECKLIST.md \
+  docs/ALIGNMENT.md docs/RULES_CATALOG.md docs/RUNBOOK.md docs/EVALUATION.md \
+  docs/LIMITATIONS_AND_ROADMAP.md docs/CONTRIBUTIONS.md docs/client-updates
+```
+
+## Never stage (either branch)
+
+`tools/`, `data/`, `feedback/`, `examples/`, client docs under `docs/` listed in `AGENTS.md`.

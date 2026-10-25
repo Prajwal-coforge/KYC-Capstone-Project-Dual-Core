@@ -1,0 +1,41 @@
+---
+description: KYC Review Copilot — agent layer map, bans, and git strategy
+alwaysApply: true
+---
+
+# KYC Copilot agent rules
+
+Authority: ENG-01 → KYC-SCOPE-01 / dated policies → `docs/OUTPUT_CONTRACT.md` → `AGENTS.md` → ADRs.
+
+## Never edit
+
+`tools/`, `data/`, `feedback/`, `examples/`, `BRIEF.md`, `docs/API.md`, `docs/OUTPUT_CONTRACT.md`, `docs/POLICY_GUIDE.md`, `docs/ASSESSMENT.md`.
+
+## Layers
+
+- `contracts`: no I/O, no model
+- `domain`: contracts only — no network, files, clock, model
+- `ingestion`: contracts only — no network, model
+- `adapters`: contracts + observability — no domain rules
+- `narrative`: contracts only — no raw docs, no mock server
+- `runner`: may orchestrate all layers
+
+One layer per PR unless a human approved a multi-layer change.
+
+## Banned
+
+No reading gold/`dataset.json`/faults to decide cases. No `POST /v1/records`. No hardcoded `KYC-Dnn`. No `today()`/`now()` for review dates. No LLM choosing route/policy/facts. No loose `dict` stage handoffs. No logging `private_token`. Retries only via shared max-3 policy.
+
+## Git (mandatory)
+
+- Do **not** commit, push, amend, or merge unless the human explicitly asks in this turn.
+- Do not push directly to `main`.
+- Rules/ADRs/architecture/`AGENTS.md` → PRs aimed at **`main`**.
+- Daywise plans, checklists, distribution → branch **`docs/planning-distribution`**.
+- Feature branches: `feat/<person>/<slug>` or `agent/<human-owner>/<slug>`.
+- Conventional commits with layer scope; tests with behavior; never stage client-owned paths.
+- If unsure whether a file is “rules” vs “planning”, ask the human before staging.
+
+## Stop and ask
+
+Before changing contracts, routing, policy selection, dependencies, CI, multi-layer edits, or weakening tests.

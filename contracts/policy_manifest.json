@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "description": "Approved SHA-256 digests of known policy/procedure files. A changed known file stops the run; a brand-new file is loaded and logged.",
+  "policies": {
+    "KYC-SCOPE-01": "600106b300acd743b2208c4900e74a67b06e94e67297265d178231b9de6dacc5",
+    "KYC-POLICY-ALDER-LTD-V1": "a468891981f0cc45a7b14acc7c5a12872333ad995ce6badcf332eb08f80fa048",
+    "KYC-POLICY-ALDER-LTD-V2": "21962011e36d72f9628f76316992f63b94d9f8eb6c47753d3093afbc2004391d",
+    "KYC-POLICY-ALDER-SOLE-V1": "e65418238bb4e952f51f0cba400966f21f9ca3e182182c1b5ac0de8ecd189896",
+    "KYC-POLICY-BIRCH-LTD-V1": "c2995524a890d43580ceaf324b79499a6e24374a93ea6b77d017755645e70b27"
+  }
+}
