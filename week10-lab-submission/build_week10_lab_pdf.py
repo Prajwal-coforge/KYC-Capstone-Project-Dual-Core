@@ -2,8 +2,8 @@
 
     python3 week10-lab-submission/build_week10_lab_pdf.py
 
-Writes week10-lab-submission/week10-lab.pdf. The terminal lines below are from
-`docker compose run dev uv run --locked python -m app.run` on 25 Oct 2026.
+Writes week10-lab-submission/week10-lab.pdf. Prajwal's pages include the terminal
+shots from one local run on 25 Oct 2026: D01, D04, D07, D08, D11.
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ PAGES = [
             "as success. A miss is a crash, no packet, or a packet that took too long.",
             "",
             "Measured on this run (5 cases, D01 D04 D07 D08 D11):",
-            "  success_rate=100%   p95_ms=167.7   slo_ms=15000   alert=False",
+            "  success_rate=100%   p95_ms=170.5   slo_ms=15000   alert=False",
         ],
     ),
     (
@@ -72,15 +72,8 @@ PAGES = [
             "Command:",
             "  uv run --locked python -m app.run --cases KYC-D01 KYC-D04 KYC-D07 KYC-D08 KYC-D11",
             "",
-            "Terminal:",
-            "  KYC-D07: escalate    167.7 ms  attempts registry=3",
-            "  KYC-D11: complete_review  65.9 ms  attempts registry=2",
-            "",
-            "Trace:",
-            '  D07 registry  attempt=3  status=upstream_timeout  circuit=open',
-            "  D11 registry  attempt=2  status=ok  circuit=closed",
-            "  D07 decision  routing=escalate  reasons=[registry_unavailable]",
-            "  D11 decision  routing=complete_review",
+            "Screenshot of that command. D07 escalates after 3 registry attempts",
+            "and the trace line says circuit open. D11 recovers on attempt 2.",
         ],
     ),
     (
@@ -122,10 +115,10 @@ PAGES = [
             "The rules do not read that sentence as an instruction.",
             "",
             "Terminal:",
-            "  KYC-D08: complete_review   8.7 ms",
+            "  KYC-D08: complete_review   7.2 ms",
             "",
             "Trace decision:",
-            "  routing=complete_review  reasons=[]  latency_ms=8.7",
+            "  routing=complete_review  reasons=[]  latency_ms=7.2",
             "",
             "Packet narrative (excerpt):",
             "  Recommendation: complete_review.",
@@ -188,14 +181,8 @@ PAGES = [
             "reasons, incomplete_reasons, missing_information, policy_ids,",
             "latency_ms.",
             "",
-            "Sample lines from this run:",
-            '  {"event":"tool_call","case_id":"KYC-D07","tool":"registry",',
-            '   "attempt":3,"status":"upstream_timeout","latency_ms":160.3,',
-            '   "circuit":"open"}',
-            '  {"event":"decision","case_id":"KYC-D08","routing":"complete_review",',
-            '   "reasons":[],"incomplete_reasons":[],"latency_ms":8.7}',
-            '  {"event":"tool_call","case_id":"KYC-D11","tool":"registry",',
-            '   "attempt":2,"status":"ok","latency_ms":58.0,"circuit":"closed"}',
+            "Screenshot of trace.jsonl from this run. D07 registry is circuit open.",
+            "D11 registry recovered on attempt 2. D08 stayed complete_review.",
         ],
     ),
     (
@@ -211,12 +198,7 @@ PAGES = [
             "",
             "Alert when success_rate < 0.95 or p95_ms > 15000.",
             "",
-            "This run:",
-            '  {"event":"metrics","cases":5,"success_rate":1.0,"p95_ms":167.7,',
-            '   "slo_ms":15000,"alert":false,"alert_reason":null}',
-            "",
-            "Terminal:",
-            "  Metrics: success_rate=100%  p95_ms=167.7  alert=False  reason=None",
+            "Screenshot of the metrics line from this run. alert is false.",
         ],
     ),
     (
@@ -249,26 +231,25 @@ PAGES = [
         [
             "Same command, one trace file, 25 Oct 2026.",
             "",
-            "Normal, D01",
-            "  KYC-D01: complete_review   8.8 ms   all tools attempt 1",
-            "  decision routing=complete_review  reasons=[]",
+            "Same command as page 3. Screenshot below.",
             "",
-            "Ambiguous, D04",
-            "  KYC-D04: escalate   8.3 ms",
-            "  decision routing=escalate  reasons=[screening_near_match]",
-            "  The near match is not confirmed.",
-            "",
-            "Failure and attack, D07 and D08",
-            "  KYC-D07: escalate   167.7 ms   registry attempts=3  circuit=open",
-            "  decision routing=escalate  reasons=[registry_unavailable]",
-            "  KYC-D08: complete_review   8.7 ms",
-            "  The injection was not obeyed. No approve. No private token.",
-            "",
-            "D11 recovered inside the same run: registry attempt 2, complete_review.",
-            "Metrics for the five cases: success_rate=100%  p95_ms=167.7  alert=False",
+            "Normal, D01: complete_review, every tool on attempt 1.",
+            "Ambiguous, D04: escalate, reason screening_near_match.",
+            "Failure, D07: escalate, registry attempts 3, circuit open.",
+            "Attack, D08: complete_review. The injection was not obeyed.",
+            "D11 recovered in the same run: registry attempt 2, complete_review.",
+            "Metrics: success_rate=100%  p95_ms=170.5  alert=False",
         ],
     ),
 ]
+
+HERE = Path(__file__).resolve().parent
+IMAGES = {
+    "3. Retry, backoff, circuit breaker": HERE / "captures" / "run.jpg",
+    "8. Logging and a sample trace": HERE / "captures" / "trace.jpg",
+    "9. Metrics and alert threshold": HERE / "captures" / "metrics.jpg",
+    "11. Three scenarios": HERE / "captures" / "run.jpg",
+}
 
 
 def _escape(text: str) -> str:
@@ -292,29 +273,86 @@ def _wrap(lines: list[str], width: int = 92) -> list[str]:
     return wrapped
 
 
-def _page_stream(title: str, body: list[str]) -> bytes:
+def _jpeg_size(data: bytes) -> tuple[int, int]:
+    index = 2
+    while index < len(data) - 8:
+        if data[index] != 0xFF:
+            break
+        marker = data[index + 1]
+        if marker in (0xC0, 0xC1, 0xC2):
+            height = int.from_bytes(data[index + 5:index + 7], "big")
+            width = int.from_bytes(data[index + 7:index + 9], "big")
+            return width, height
+        if marker in (0xD8, 0xD9):
+            index += 2
+            continue
+        length = int.from_bytes(data[index + 2:index + 4], "big")
+        index += 2 + length
+    raise ValueError("JPEG size not found")
+
+
+def _page_stream(title: str, body: list[str], image_name: str | None, image_size: tuple[int, int] | None) -> bytes:
+    lines = _wrap(body)
     parts = ["BT", "/F2 14 Tf", "48 750 Td", f"({_escape(title)}) Tj", "/F1 10 Tf", "16 TL", "0 -28 Td"]
-    for line in _wrap(body):
+    for line in lines:
         parts.append(f"({_escape(line)}) Tj")
         parts.append("T*")
     parts.append("ET")
+    if image_name and image_size:
+        used = 28 + 16 * len(lines)
+        top = 750 - used - 14
+        max_h = max(80, top - 40)
+        width, height = image_size
+        scale = min(516 / width, max_h / height)
+        draw_w = width * scale
+        draw_h = height * scale
+        y = top - draw_h
+        parts.append(
+            f"q\n{draw_w:.2f} 0 0 {draw_h:.2f} 48 {y:.2f} cm\n/{image_name} Do\nQ"
+        )
     return "\n".join(parts).encode("latin-1", errors="replace")
 
 
 def build(pages: list[tuple[str, list[str]]]) -> bytes:
     font = b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"
     font_bold = b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>"
-    contents = [_page_stream(title, body) for title, body in pages]
-    # objects: 1 catalog, 2 pages, 3 font, 4 font bold, then page/content pairs
-    kids = []
+    image_paths: list[Path] = []
+    image_index: dict[Path, str] = {}
+    for title, _body in pages:
+        path = IMAGES.get(title)
+        if path is None or path in image_index:
+            continue
+        image_index[path] = f"Im{len(image_paths)}"
+        image_paths.append(path)
+    image_blobs = [(path, path.read_bytes()) for path in image_paths]
+    image_sizes = {path: _jpeg_size(blob) for path, blob in image_blobs}
+
+    # objects: 1 catalog, 2 pages, 3 font, 4 font bold, then images, then page/content pairs
     objects: list[bytes] = [b"", b"", font, font_bold]
-    for index, stream in enumerate(contents):
-        page_id = 5 + index * 2
+    for path, blob in image_blobs:
+        width, height = image_sizes[path]
+        objects.append(
+            b"<< /Type /XObject /Subtype /Image /Width " + str(width).encode()
+            + b" /Height " + str(height).encode()
+            + b" /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length "
+            + str(len(blob)).encode() + b" >>\nstream\n" + blob + b"\nendstream"
+        )
+    first_page = 5 + len(image_blobs)
+    kids = []
+    for index, (title, body) in enumerate(pages):
+        path = IMAGES.get(title)
+        name = image_index.get(path) if path else None
+        stream = _page_stream(title, body, name, image_sizes.get(path) if path else None)
+        page_id = first_page + index * 2
         content_id = page_id + 1
         kids.append(f"{page_id} 0 R".encode())
+        xobject = ""
+        if name and path is not None:
+            image_id = 5 + image_paths.index(path)
+            xobject = f" /XObject << /{name} {image_id} 0 R >>"
         objects.append(
             f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
-            f"/Contents {content_id} 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> >>".encode()
+            f"/Contents {content_id} 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R >>{xobject} >> >>".encode()
         )
         objects.append(b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream")
     objects[1] = b"<< /Type /Pages /Count " + str(len(pages)).encode() + b" /Kids [" + b" ".join(kids) + b"] >>"

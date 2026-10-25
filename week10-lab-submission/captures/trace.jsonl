@@ -1,0 +1,26 @@
+{"attempt": 1, "case_id": "KYC-D01", "circuit": "closed", "event": "tool_call", "latency_ms": 1.2, "status": "ok", "tool": "customer"}
+{"attempt": 1, "case_id": "KYC-D01", "circuit": "closed", "event": "tool_call", "latency_ms": 1.0, "status": "ok", "tool": "registry"}
+{"attempt": 1, "case_id": "KYC-D01", "circuit": "closed", "event": "tool_call", "latency_ms": 0.8, "status": "ok", "tool": "screening"}
+{"attempt": 1, "case_id": "KYC-D01", "circuit": "closed", "event": "tool_call", "latency_ms": 0.8, "status": "ok", "tool": "transaction-summary"}
+{"case_id": "KYC-D01", "classification": "kyc_review", "event": "decision", "incomplete_reasons": [], "latency_ms": 4.4, "missing_information": [], "policy_ids": ["KYC-POLICY-ALDER-LTD-V2", "KYC-SCOPE-01"], "reasons": [], "routing": "complete_review"}
+{"attempt": 1, "case_id": "KYC-D04", "circuit": "closed", "event": "tool_call", "latency_ms": 0.9, "status": "ok", "tool": "customer"}
+{"attempt": 1, "case_id": "KYC-D04", "circuit": "closed", "event": "tool_call", "latency_ms": 0.8, "status": "ok", "tool": "registry"}
+{"attempt": 1, "case_id": "KYC-D04", "circuit": "closed", "event": "tool_call", "latency_ms": 0.8, "status": "ok", "tool": "screening"}
+{"attempt": 1, "case_id": "KYC-D04", "circuit": "closed", "event": "tool_call", "latency_ms": 0.8, "status": "ok", "tool": "transaction-summary"}
+{"case_id": "KYC-D04", "classification": "kyc_review", "event": "decision", "incomplete_reasons": [], "latency_ms": 3.8, "missing_information": [], "policy_ids": ["KYC-POLICY-ALDER-LTD-V2", "KYC-SCOPE-01"], "reasons": ["screening_near_match"], "routing": "escalate"}
+{"attempt": 1, "case_id": "KYC-D07", "circuit": "closed", "event": "tool_call", "latency_ms": 0.9, "status": "ok", "tool": "customer"}
+{"attempt": 3, "case_id": "KYC-D07", "circuit": "open", "event": "tool_call", "latency_ms": 165.0, "status": "upstream_timeout", "tool": "registry"}
+{"attempt": 1, "case_id": "KYC-D07", "circuit": "closed", "event": "tool_call", "latency_ms": 1.9, "status": "ok", "tool": "screening"}
+{"attempt": 1, "case_id": "KYC-D07", "circuit": "closed", "event": "tool_call", "latency_ms": 1.8, "status": "ok", "tool": "transaction-summary"}
+{"case_id": "KYC-D07", "classification": "kyc_review", "event": "decision", "incomplete_reasons": ["registry_unavailable"], "latency_ms": 170.5, "missing_information": [], "policy_ids": ["KYC-POLICY-ALDER-LTD-V2", "KYC-SCOPE-01"], "reasons": ["registry_unavailable"], "routing": "escalate"}
+{"attempt": 1, "case_id": "KYC-D08", "circuit": "closed", "event": "tool_call", "latency_ms": 1.6, "status": "ok", "tool": "customer"}
+{"attempt": 1, "case_id": "KYC-D08", "circuit": "closed", "event": "tool_call", "latency_ms": 1.6, "status": "ok", "tool": "registry"}
+{"attempt": 1, "case_id": "KYC-D08", "circuit": "closed", "event": "tool_call", "latency_ms": 1.5, "status": "ok", "tool": "screening"}
+{"attempt": 1, "case_id": "KYC-D08", "circuit": "closed", "event": "tool_call", "latency_ms": 1.5, "status": "ok", "tool": "transaction-summary"}
+{"case_id": "KYC-D08", "classification": "kyc_review", "event": "decision", "incomplete_reasons": [], "latency_ms": 7.2, "missing_information": [], "policy_ids": ["KYC-POLICY-ALDER-LTD-V2", "KYC-SCOPE-01"], "reasons": [], "routing": "complete_review"}
+{"attempt": 1, "case_id": "KYC-D11", "circuit": "closed", "event": "tool_call", "latency_ms": 1.4, "status": "ok", "tool": "customer"}
+{"attempt": 2, "case_id": "KYC-D11", "circuit": "closed", "event": "tool_call", "latency_ms": 57.8, "status": "ok", "tool": "registry"}
+{"attempt": 1, "case_id": "KYC-D11", "circuit": "closed", "event": "tool_call", "latency_ms": 1.7, "status": "ok", "tool": "screening"}
+{"attempt": 1, "case_id": "KYC-D11", "circuit": "closed", "event": "tool_call", "latency_ms": 1.6, "status": "ok", "tool": "transaction-summary"}
+{"case_id": "KYC-D11", "classification": "kyc_review", "event": "decision", "incomplete_reasons": [], "latency_ms": 63.6, "missing_information": [], "policy_ids": ["KYC-POLICY-ALDER-SOLE-V1", "KYC-SCOPE-01"], "reasons": [], "routing": "complete_review"}
+{"alert": false, "alert_reason": null, "cases": 5, "event": "metrics", "p95_ms": 170.5, "slo_ms": 15000, "success_rate": 1.0}
