@@ -1,48 +1,90 @@
-# Vidhi — 50% checklist
+# Vidhi checklist (50%) — mirrors [`DAYWISE_PLAN.md`](DAYWISE_PLAN.md)
 
-Your half of a **50–50** split with Prajwal. Full day map: [`DAYWISE_PLAN.md`](DAYWISE_PLAN.md).  
-**You own:** escalate + request_information domain, runner/batch, packet merge, **demo script**, Diego, merge.  
-**He owns:** policy/EDD/mismatches domain, ToolClient/ingest/store/citations/narrative, **deployment**/CI.  
-**Monitor:** he reviews every `vidhi/*` PR; you review every `prajwal/*` PR.
+Lab detail: [`WEEK10_LAB.md`](WEEK10_LAB.md) · Prajwal’s list: [`PRAJWAL_CHECKLIST.md`](PRAJWAL_CHECKLIST.md)  
+You always own: **demo script**, Diego, merge, escalate/request domain.  
+He always owns: deployment, CI, adapters/retries.  
+**Monitor:** review every `prajwal/*` PR; he reviews every `vidhi/*` PR.
 
-Do not edit client files. Do not take over Docker unless he is blocked (then pair).  
-Authority: ENG-01 → policies → output contract.
+```text
+SUN = lab code + E2E + PDF
+MON = ENG-01 + 12/12 + midpoint
+TUE = finish gaps + demo script + caveats draft
+WED = demo + edge cases + caveats
+```
 
 ---
 
-## 1. Domain — your 50% of rules
+## Sunday 25 — Week 10 Lab (code → E2E → PDF)
 
-- [ ] Unsupported matrix → escalate, `unsupported`, only `KYC-SCOPE-01`
-- [ ] Tool unavailable after 3 → escalate (consume his failure flags)
-- [ ] Ownership depth > 1 → escalate
-- [ ] Exact/near screening → escalate; do not confirm identity
-- [ ] Identity missing / not included → `identity_document`; preserve when escalating
-- [ ] Address three-way → `address_explanation`; missing filing ≠ address diff
-- [ ] Routing precedence integration with **his** EDD/mismatch signals (agree call order in code)
-- [ ] Tests for the above (D01 complete path, D02/D03-style identity/address)
+**Goal (same as daywise):** Harden running KYC path E2E, then screenshot for PDF.
 
-## 2. Runner / packet — your 50% of app shell
+### Shared E2E loop
+- [ ] Mock up (`tools/runtime.py serve`)
+- [ ] Code on **existing** branch (do not create a new week10 branch); review his commits/PRs on his existing branch
+- [ ] Run D01, D04, D07/D11, D08 + duplicate run
+- [ ] Confirm logs/traces and routes
+- [ ] Screenshot → lab PDF
 
-- [ ] CLI: health → cases → batch; duplicate key (business ref + review date)
-- [ ] Merge his citations + your Decision into OUTPUT_CONTRACT packet
-- [ ] DRAFT customer message only when route is `request_information`
-- [ ] `POST /v1/reviews` + poll; no `POST /v1/records`
-- [ ] Joint **12/12** ownership with him (you drive native; he drives Compose)
+### Your Sunday build (from daywise table)
+- [ ] Failure-case → pattern **mapping** (joint) + **SLO / error budget** text
+- [ ] Implement **idempotency** (ledger / skip duplicate review action)
+- [ ] Prove twice-same-case in **terminal**
+- [ ] Ensure **D08** injection cannot change route/approve; prove in terminal + packet
+- [ ] Enforce **human boundary** in code (no records / no approve path); grep proof
+- [ ] Emit decision/reason events into his trace format if needed
+- [ ] **Runbook** for D08 in `RUNBOOK.md`
+- [ ] Wire/run **three scenarios** with his traces (D01, D04, D07 or D08)
+- [ ] Review his retry/backoff/breaker + tracing PR
+- [ ] PDF pages (yours); review his pages
 
-## 3. Demo + client — your 50% of delivery
+**Sunday done when:** E2E works on D01 + D04 + D07/D11 + D08 + duplicate; traces visible; lab PDF complete.
 
-- [ ] **Demo script** D01 / D04 / D07 or D08
-- [ ] Fix gaps from his Docker dry-run
-- [ ] Lead rehearsal + live demo
-- [ ] Diego midpoint + submission emails
-- [ ] Merge to `main` only after his review; tag after both sign fresh-setup
+---
 
-## 4. Monitor his 50%
+## Monday 26 — Capstone build
 
-- [ ] Review PRs: ToolClient, ingest, manifest, citations, EDD/mismatch domain, Docker, CI, EVALUATION
-- [ ] Confirm Compose 12/12 matches native
-- [ ] Sign his deploy recovery before submit
+**Goal:** ENG-01 behavior + **12/12**; Diego midpoint.
 
-## Done when
+- [ ] Escalate / request / address domain
+- [ ] Packet merge; **DRAFT only** on `request_information`
+- [ ] Duplicate-review product path if anything left after Sunday lab
+- [ ] Native **12/12**
+- [ ] Send **Diego midpoint**
+- [ ] Review **all** his Mon PRs (Compose 12/12, CI, deploy runbook, latency)
 
-Your half of domain + runner + demo + Diego are done; his half is reviewed by you; 12/12 green; both signed tag.
+**Monday done when:** 12/12; midpoint sent; mutual PR reviews done.
+
+---
+
+## Tuesday 27 — Capstone finish
+
+**Goal:** Close gaps; prep Wednesday.
+
+- [ ] Fix graded failures; domain/adversarial tests still open
+- [ ] Finalize **demo script** for Wed (D01 / D04 / D07 or D08)
+- [ ] Review his Tue PRs (deploy recovery, EVALUATION, ADR-0005)
+- [ ] Confirm Compose still 12/12 with him
+- [ ] List **caveats** for Wed (known limits)
+
+**Tuesday done when:** 12/12 still green; demo script ready; caveat list drafted.
+
+---
+
+## Wednesday 28 — Demo, edge cases, caveats
+
+**Goal:** Live demo + edge defense + honest limits; submit if due.
+
+- [ ] Lead demo from **your script** (normal / escalate / failure-attack)
+- [ ] Walk **edge cases**: D03 address, threshold equal, disputed jurisdiction, format/Source ID
+- [ ] Present **caveats**: ENG-01 notify-not-load, template narrative, no fuzzy match, lab SLO ≠ bank SLA
+- [ ] Hotfix only if demo breaks
+- [ ] Diego submission update if freezing today
+- [ ] Tag/submit **only if both signed** fresh-setup
+
+**Wednesday done when:** Demo + edge + caveats delivered; optional tag/submit per calendar.
+
+---
+
+## Never cut
+
+Sunday lab **E2E + PDF** · Monday **12/12** · Wednesday **demo / edge / caveats** · human boundary · cross-reviews  

@@ -11,6 +11,17 @@ uv run --locked python tools/runtime.py audit > reports/audit.json
 uv run --locked python -m unittest
 ```
 
+## Week 10 Lab — SLO metrics (fill with measured numbers)
+
+| Metric | Definition | Alert |
+|---|---|---|
+| Packet success rate | Share of cases that emit a valid packet without crash | &lt; 95% over last 20 cases → page |
+| p95 time-to-packet | Wall ms from case start to packet written (excl. human approve) | p95 &gt; 15s → page |
+| Tool retry rate | Attempts &gt; 1 / total tool calls | Informational |
+| Escalate / incomplete share | Cases with escalate or tool failure reasons | Informational |
+
+Proposed SLO: *≥95% of cases produce a draft packet within 15 seconds.* Error budget: *≤5 misses per 100 cases; at 3 misses, freeze features and only ship reliability fixes.*
+
 ## Dev set results
 
 Filled after a green replay (update numbers; do not invent).
@@ -21,7 +32,7 @@ Filled after a green replay (update numbers; do not invent).
 | Format errors | _pending_ |
 | Audit write attempts (`POST /v1/records`) | _pending_ |
 | Max attempts per tool | _pending_ (must be ≤ 3) |
-| Mean seconds per case | _pending_ |
+| Mean / p95 seconds per case | _pending_ |
 | Restricted token leaks in packet/logs | _pending_ (must be 0) |
 
 ## Adversarial / shadow / discrepancies

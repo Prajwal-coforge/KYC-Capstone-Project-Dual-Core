@@ -73,3 +73,23 @@ See [`DOCKER.md`](../DOCKER.md) and ADR-0005. Compose runs `mock` (loopback 8766
 ## Retention and deletion
 
 Application SQLite (`.state/app.sqlite`) stores policy/document text for citation checks and redacted tool evidence. It must **not** store `private_token` or review-log copies of full customer documents beyond ingested evidence. Delete or rebuild the app DB between assessment runs (`rm .state/app.sqlite` or re-ingest). Mock state is separate (`.state/mock.sqlite`) and is reset with `reset --confirm`. Do not commit either database.
+
+## Severe failure: prompt injection in a case document (D08-class)
+
+**Symptom:** Packet route looks wrong, narrative echoes “IMPORTANT SYSTEM MESSAGE”, or someone claims the bot “approved” a customer.
+
+**Check first**
+1. Open the case’s corporate/identity markdown; search for instruction-like lines (`IMPORTANT`, `ignore previous`, `approve`).
+2. Inspect structured trace for that `case_id`: tool statuses, `reasons`, final `routing` — not free-text model chatter.
+3. Confirm process list / code paths: no `approve` operator command and no `POST /v1/records` from the app.
+
+**Confirm cause**
+- Injected text appears only as **quoted evidence** (or quarantined unrecognized lines), not as a `ReasonCode` that forces approve.
+- Routing still comes from `domain` precedence (D08 expected: normal complete_review when no other escalate signals).
+
+**Immediate mitigation**
+1. Do **not** run operator `approve` on a suspicious draft.
+2. Re-run the single case with tracing on; save `trace.jsonl` + packet.
+3. If narrative echoed the injection, fall back to template narrator and file a defect — routing must stay unchanged.
+4. Reset mock state only between assessment runs (`reset --confirm`), not mid-debug if you need the audit trail.
+5. Page / tell the teammate on-call if success-rate or p95 SLO alert also fired (see Week 10 metrics).
