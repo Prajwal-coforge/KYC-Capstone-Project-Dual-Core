@@ -139,7 +139,7 @@ class ToolClient:
                 if attempt < self.max_attempts and self.backoff_seconds:
                     self.sleep(self.backoff_seconds * (2 ** (attempt - 1)))
         circuit.fail(self._now())
-        return ToolResult(tool, False, None, self.max_attempts, error, self._now() - started, state)
+        return ToolResult(tool, False, None, self.max_attempts, error, self._now() - started, "open")
 
     def list_cases(self) -> list[dict]:
         return self._request("GET", "/v1/cases")["cases"]

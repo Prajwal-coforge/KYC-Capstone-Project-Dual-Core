@@ -37,7 +37,7 @@ class TraceTests(unittest.TestCase):
             sink = JsonlTrace(path)
             sink.write_run(_run(result=ToolResult(
                 "registry", False, {"private_token": "SECRET", "note": "raw document text"},
-                3, "upstream_timeout", 0.2, "closed")))
+                3, "upstream_timeout", 0.2, "open")))
             sink.write({"event": "tool_call", "private_token": "SECRET", "status": "ok"})
             text = path.read_text()
         self.assertNotIn("SECRET", text)
@@ -45,7 +45,7 @@ class TraceTests(unittest.TestCase):
         self.assertNotIn("raw document", text)
         rows = [json.loads(line) for line in text.splitlines()]
         self.assertEqual(rows[0]["status"], "upstream_timeout")
-        self.assertEqual(rows[0]["attempt"], 3)
+        self.assertEqual((rows[0]["attempt"], rows[0]["circuit"]), (3, "open"))
 
     def test_alert_when_success_rate_or_p95_breaches_the_slo(self):
         fast = [{"event": "decision", "latency_ms": 10.0} for _ in range(20)]
