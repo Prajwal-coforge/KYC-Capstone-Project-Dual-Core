@@ -83,6 +83,7 @@ class _Scratch:
     jurisdiction: str | None = None
     entity_id: str | None = None
     jurisdiction_disputed: bool = False
+    entity_ref_disputed: bool = False
 
 
 _ACTIVE: ContextVar[_Scratch | None] = ContextVar("kyc_rule_scratch", default=None)
@@ -172,6 +173,8 @@ class CrossSourceConflictRule(StatutoryRule):
         if _present_text(evidence.entity_ref) and _present_text(cust_entity):
             if evidence.entity_ref != cust_entity:
                 scratch.escalate.append("entity_ref_conflict")
+                scratch.entity_ref_disputed = True
+                scratch.entity_id = None
 
         owners = _owner_names(registry)
         if owners is not None:
@@ -196,7 +199,10 @@ class ScopeAndPolicyRule(StatutoryRule):
         scratch.entity_type = customer.get("entity_type") if customer else None
         if not scratch.jurisdiction_disputed:
             scratch.jurisdiction = customer.get("jurisdiction") if customer else None
-        scratch.entity_id = (customer.get("entity_id") if customer else None) or evidence.entity_ref
+        if not scratch.entity_ref_disputed:
+            scratch.entity_id = (
+                customer.get("entity_id") if customer else None
+            ) or evidence.entity_ref
 
         entity_type = scratch.entity_type
         jurisdiction = scratch.jurisdiction

@@ -388,6 +388,7 @@ class CrossSourceConflictTests(unittest.TestCase):
         d = self.route(evidence(entity_ref="ENT-OTHER"))
         self.assertEqual(d.routing, "escalate")
         self.assertIn("entity_ref_conflict", d.reasons)
+        self.assertIsNone(d.facts["entity_id"])
 
     def test_holder_name_not_in_registry_owners_escalates(self):
         d = self.route(evidence(holder_name="Not An Owner"))
