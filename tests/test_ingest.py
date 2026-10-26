@@ -1,4 +1,5 @@
 """Ingestion tests. Run: uv run --locked python -m unittest -v"""
+import ast
 import shutil
 import sys
 import tempfile
@@ -13,6 +14,8 @@ from app.sqlite_store import SqliteKnowledgeStore
 
 ROOT = Path(__file__).resolve().parents[1]
 DEV = ROOT / "data" / "dev"
+MANIFEST = ROOT / "contracts" / "policy_manifest.json"
+INGESTION_SRC = ROOT / "src" / "kyc_copilot" / "ingestion"
 
 
 class DevDataTests(unittest.TestCase):
@@ -211,6 +214,116 @@ class ParsingTests(unittest.TestCase):
         self.assertEqual(parsed.source.source_id, "KYC-X1-INTAKE")
         self.assertEqual(parsed.document.case_id, "KYC-X1")
         self.assertEqual(len(parsed.warnings), 1)
+
+
+class KycCopilotParsingTests(unittest.TestCase):
+    """Cycle 1.2: corporate/identity fields and suffix checks via kyc_copilot.ingestion."""
+
+    def test_corporate_filing_fields_are_parsed(self):
+        from kyc_copilot.ingestion.parsing import parse_file as kyc_parse
+
+        parsed = kyc_parse(DEV / "documents" / "KYC-D01-CORPORATE.md", "documents")
+        doc = parsed.document
+        self.assertEqual(doc.doc_type, "corporate")
+        self.assertEqual(doc.filing_jurisdiction, "Alder")
+        self.assertEqual(doc.declared_owner, "Ari Vale")
+        self.assertEqual(doc.filing_address, "100 Orchard Walk, Alder.")
+
+    def test_identity_fields_are_parsed(self):
+        from kyc_copilot.ingestion.parsing import parse_file as kyc_parse
+
+        parsed = kyc_parse(DEV / "documents" / "KYC-D01-IDENTITY.md", "documents")
+        doc = parsed.document
+        self.assertEqual(doc.doc_type, "identity")
+        self.assertEqual(doc.holder_name, "Ari Vale")
+        self.assertEqual(doc.birth_year, 1985)
+        self.assertEqual(doc.document_reference, "SYN-ID-D01")
+        self.assertFalse(doc.identity_not_supplied)
+
+    def test_identity_not_included_sets_identity_not_supplied(self):
+        from kyc_copilot.ingestion.parsing import parse_file as kyc_parse
+
+        parsed = kyc_parse(DEV / "documents" / "KYC-D02-IDENTITY.md", "documents")
+        self.assertTrue(parsed.document.identity_not_supplied)
+        self.assertIsNone(parsed.document.holder_name)
+
+    def test_unrecognized_document_suffix_is_flagged(self):
+        from kyc_copilot.ingestion.parsing import parse_file as kyc_parse
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "KYC-X1-OTHER.md"
+            path.write_text(
+                "# Odd attachment\n\nSource ID: KYC-X1-OTHER\n\nReview date: 2026-10-01\n"
+            )
+            parsed = kyc_parse(path, "documents")
+        self.assertTrue(
+            any("unrecognized_document_suffix" in w for w in parsed.warnings),
+            parsed.warnings,
+        )
+
+
+class PolicyManifestGuardTests(unittest.TestCase):
+    """Cycle 1.3: PolicyManifestGuard and no-network ingestion package."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.data = self.tmp / "data"
+        shutil.copytree(DEV, self.data)
+        self.store = SqliteKnowledgeStore(":memory:")
+        self.addCleanup(self.store.close)
+
+    def test_tampered_known_policy_hash_raises_ingest_error(self):
+        from kyc_copilot.ingestion.ingest import IngestError as KycIngestError
+        from kyc_copilot.ingestion.ingest import ingest as kyc_ingest
+
+        target = self.data / "policies" / "KYC-SCOPE-01.md"
+        target.write_bytes(target.read_bytes() + b"\n")
+        with self.assertRaises(KycIngestError) as ctx:
+            kyc_ingest(self.data, self.store, manifest_path=MANIFEST)
+        self.assertIn("KYC-SCOPE-01", str(ctx.exception))
+
+    def test_unknown_policy_file_is_not_loaded_and_warns(self):
+        from kyc_copilot.ingestion.ingest import ingest as kyc_ingest
+
+        new_policy = self.data / "policies" / "KYC-POLICY-NEW-UNLISTED.md"
+        new_policy.write_text(
+            "# Unlisted policy\n\n"
+            "Source ID: KYC-POLICY-NEW-UNLISTED\n\n"
+            "Entity type: limited_company\n"
+            "Jurisdiction: Alder\n"
+            "Effective from: 2026-01-01\n"
+            "Effective through: 2026-12-31\n"
+            "EDD monthly threshold: 99999\n"
+        )
+        before_policies = 4
+        report = kyc_ingest(self.data, self.store, manifest_path=MANIFEST)
+        self.assertTrue(
+            any(w == "new_policy_file_not_loaded:KYC-POLICY-NEW-UNLISTED" for w in report["warnings"]),
+            report["warnings"],
+        )
+        self.assertIsNone(self.store.get_source("KYC-POLICY-NEW-UNLISTED"))
+        self.assertEqual(self.store.counts()["policies"], before_policies)
+        self.assertEqual(
+            self.store.find_policies("limited_company", "Alder", "2026-06-01")[0].edd_threshold,
+            30000,
+        )
+
+    def test_ingestion_package_does_not_import_urllib(self):
+        forbidden = {"urllib", "urllib.request", "urllib.error", "urllib.parse"}
+        files = list(INGESTION_SRC.glob("*.py"))
+        self.assertTrue(files, f"expected Python modules under {INGESTION_SRC}")
+        for path in files:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            found: set[str] = set()
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        found.add(alias.name)
+                elif isinstance(node, ast.ImportFrom) and node.module:
+                    found.add(node.module)
+            hits = {name for name in found if name.split(".")[0] == "urllib" or name in forbidden}
+            self.assertFalse(hits, f"{path.name} imports {sorted(hits)}")
 
 
 class ServiceLinkTests(unittest.TestCase):
