@@ -10,13 +10,13 @@ Missing-information fields are kept even when a higher rule wins.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, ClassVar
 
+from kyc_copilot.contracts.address import compare_addresses, normalize_address
 from kyc_copilot.contracts.interfaces import StatutoryRule
 from kyc_copilot.contracts.models import CaseEvidence, Decision, Policy
 
@@ -32,35 +32,6 @@ TOOL_LABELS = {
     "registry": "registry",
     "screening": "screening",
     "transaction-summary": "transactions",
-}
-
-# US street suffixes and directionals (ASSUMPTIONS.md 3.1). Anything else is compared literally,
-# so an unrecognized abbreviation counts as a material difference.
-_ABBREVIATIONS = {
-    "st": "street",
-    "ave": "avenue",
-    "av": "avenue",
-    "rd": "road",
-    "blvd": "boulevard",
-    "dr": "drive",
-    "ln": "lane",
-    "ct": "court",
-    "pl": "place",
-    "sq": "square",
-    "ter": "terrace",
-    "pkwy": "parkway",
-    "hwy": "highway",
-    "cir": "circle",
-    "ste": "suite",
-    "apt": "apartment",
-    "n": "north",
-    "s": "south",
-    "e": "east",
-    "w": "west",
-    "ne": "northeast",
-    "nw": "northwest",
-    "se": "southeast",
-    "sw": "southwest",
 }
 
 
@@ -94,19 +65,6 @@ def _scratch() -> _Scratch:
     if active is None:
         raise RuntimeError("StatutoryRule.apply requires an active decide() scratch")
     return active
-
-
-def normalize_address(text: str) -> str:
-    words = re.sub(r"[^\w\s]", " ", text.casefold()).split()
-    return " ".join(_ABBREVIATIONS.get(w, w) for w in words)
-
-
-def compare_addresses(a: str | None, b: str | None) -> str:
-    if not isinstance(a, str) or not isinstance(b, str) or not a.strip() or not b.strip():
-        return "unknown"
-    if a == b:
-        return "same"
-    return "normalized_same" if normalize_address(a) == normalize_address(b) else "different"
 
 
 def _number(value: object) -> int | float | None:

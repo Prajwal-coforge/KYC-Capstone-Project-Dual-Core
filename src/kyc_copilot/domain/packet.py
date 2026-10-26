@@ -5,10 +5,11 @@ Domain layer: contracts + same-layer rules only. Store I/O goes through Knowledg
 
 from __future__ import annotations
 
+from kyc_copilot.contracts.address import compare_addresses
 from kyc_copilot.contracts.interfaces import KnowledgeStore, Narrator
 from kyc_copilot.contracts.models import CaseEvidence, Decision, Document, Source
 from kyc_copilot.contracts.redaction import json_fragment
-from kyc_copilot.domain.rules import SCOPE_ID, compare_addresses
+from kyc_copilot.domain.rules import SCOPE_ID
 
 # Short exact phrases from KYC-SCOPE-01 that justify each reason. Phrases that are not
 # found in the supplied text are dropped, never invented.
