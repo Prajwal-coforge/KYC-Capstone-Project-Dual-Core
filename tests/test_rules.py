@@ -4,12 +4,29 @@ from dataclasses import replace
 from datetime import date
 
 from app.ingest import ingest
-from app.rules import CaseEvidence, compare_addresses, decide, normalize_address
-
 from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
+from kyc_copilot.contracts.interfaces import StatutoryRule
+from kyc_copilot.domain.rules import (
+    CaseEvidence,
+    compare_addresses,
+    decide,
+    normalize_address,
+)
 from tests.helpers import DEV
 
 ADDRESS = "100 Orchard Walk, Alder"
+FILING_ADDRESS = "100 Orchard Walk, Alder."
+
+EXPECTED_RULE_ORDER = (
+    "tool_availability",
+    "cross_source_conflict",
+    "scope_and_policy",
+    "ownership_depth",
+    "screening_match",
+    "identity_document",
+    "address_comparison",
+    "edd_and_pep",
+)
 
 
 def evidence(**over) -> CaseEvidence:
@@ -39,6 +56,12 @@ def evidence(**over) -> CaseEvidence:
             "monthly_total": 12000,
             "currency": "XCR",
         },
+        filing_jurisdiction="Alder",
+        declared_owner="Ari Vale",
+        filing_address=FILING_ADDRESS,
+        holder_name="Ari Vale",
+        birth_year=1985,
+        identity_not_supplied=False,
     )
     return replace(base, **over)
 
@@ -299,6 +322,129 @@ class RulesTests(unittest.TestCase):
         self.assertEqual(d.facts["entity_id"], "ENT-1")
         self.assertIsNone(d.facts["entity_type"])
         self.assertEqual(d.policy_ids, ["KYC-SCOPE-01"])
+
+
+class StatutoryRuleRegistryTests(unittest.TestCase):
+    """Cycle 3.1: reflective StatutoryRule registry ordering."""
+
+    def test_ordered_rules_are_sorted_by_precedence_then_rule_id(self):
+        import kyc_copilot.domain.rules  # noqa: F401 — register concrete subclasses
+
+        rules = StatutoryRule.ordered_rules()
+        self.assertEqual([r.rule_id for r in rules], list(EXPECTED_RULE_ORDER))
+        precedences = [type(r).precedence for r in rules]
+        self.assertEqual(precedences, sorted(precedences))
+        self.assertEqual(precedences, [10, 11, 12, 14, 16, 20, 22, 30])
+
+
+class CrossSourceConflictTests(unittest.TestCase):
+    """Cycle 3.2: non-address cross-source conflicts escalate without picking a winner."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.store = SqliteKnowledgeStore(":memory:")
+        ingest(DEV, cls.store)
+        cls.find = cls.store.find_policies
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.store.close()
+
+    def route(self, ev):
+        return decide(ev, self.find)
+
+    def test_disputed_jurisdiction_escalates_without_product_policy(self):
+        d = self.route(evidence(filing_jurisdiction="Birch"))
+        self.assertEqual(d.routing, "escalate")
+        self.assertIn("jurisdiction_conflict", d.reasons)
+        self.assertIsNone(d.facts["jurisdiction"])
+        self.assertEqual(d.policy_ids, ["KYC-SCOPE-01"])
+
+    def test_entity_ref_conflict_escalates(self):
+        d = self.route(evidence(entity_ref="ENT-OTHER"))
+        self.assertEqual(d.routing, "escalate")
+        self.assertIn("entity_ref_conflict", d.reasons)
+
+    def test_holder_name_not_in_registry_owners_escalates(self):
+        d = self.route(evidence(holder_name="Not An Owner"))
+        self.assertEqual(d.routing, "escalate")
+        self.assertIn("owner_name_conflict", d.reasons)
+
+    def test_declared_owner_not_in_registry_owners_escalates(self):
+        d = self.route(evidence(declared_owner="Not An Owner"))
+        self.assertEqual(d.routing, "escalate")
+        self.assertIn("owner_name_conflict", d.reasons)
+
+    def test_birth_year_conflict_escalates(self):
+        d = self.route(evidence(customer=customer(birth_year=1990), birth_year=1985))
+        self.assertEqual(d.routing, "escalate")
+        self.assertIn("birth_year_conflict", d.reasons)
+
+    def test_missing_filing_jurisdiction_is_not_a_conflict(self):
+        d = self.route(evidence(filing_jurisdiction=None))
+        self.assertEqual(d.routing, "complete_review")
+        self.assertNotIn("jurisdiction_conflict", d.reasons)
+
+    def test_missing_holder_name_alone_is_not_owner_conflict(self):
+        d = self.route(evidence(holder_name=None))
+        self.assertNotIn("owner_name_conflict", d.reasons)
+
+
+class ThreeWayAddressAndIdentityTests(unittest.TestCase):
+    """Cycle 3.3: 3-way address compare + identity holder / not-included checks."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.store = SqliteKnowledgeStore(":memory:")
+        ingest(DEV, cls.store)
+        cls.find = cls.store.find_policies
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.store.close()
+
+    def route(self, ev):
+        return decide(ev, self.find)
+
+    def test_filing_address_mismatch_requests_explanation(self):
+        d = self.route(evidence(filing_address="999 Other Walk, Alder."))
+        self.assertEqual(d.routing, "request_information")
+        self.assertIn("address_explanation", d.missing_information)
+        self.assertEqual(d.address_check, "different")
+
+    def test_missing_corporate_filing_address_is_not_a_difference(self):
+        d = self.route(evidence(filing_address=None))
+        self.assertEqual(d.routing, "complete_review")
+        self.assertNotIn("address_explanation", d.missing_information)
+
+    def test_three_present_addresses_same_completes(self):
+        d = self.route(evidence())
+        self.assertEqual(d.routing, "complete_review")
+        self.assertEqual(d.address_check, "same")
+
+    def test_missing_holder_name_requests_identity_document(self):
+        d = self.route(
+            evidence(
+                holder_name=None,
+                identity_status="attached",
+                identity_document_present=True,
+                identity_not_supplied=False,
+            )
+        )
+        self.assertEqual(d.routing, "request_information")
+        self.assertIn("identity_document", d.missing_information)
+
+    def test_identity_not_supplied_flag_requests_identity_document(self):
+        d = self.route(
+            evidence(
+                identity_not_supplied=True,
+                identity_status="attached",
+                identity_document_present=True,
+                holder_name=None,
+            )
+        )
+        self.assertEqual(d.routing, "request_information")
+        self.assertIn("identity_document", d.missing_information)
 
 
 if __name__ == "__main__":
