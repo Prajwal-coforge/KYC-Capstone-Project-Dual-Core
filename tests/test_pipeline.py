@@ -5,12 +5,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
+from kyc_copilot.adapters.tools_client import ToolClient
 from kyc_copilot.runner.cli import draft_hash, review_cases, submit_drafts
 from kyc_copilot.runner.cli import main as run_main
 from kyc_copilot.runner.ingest import ingest
-
-from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
-from kyc_copilot.adapters.tools_client import ToolClient
 from tests.helpers import DEV, ROOT, MockService, load_tool
 
 CONTRACT_FIELDS = {

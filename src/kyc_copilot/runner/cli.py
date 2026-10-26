@@ -1,12 +1,13 @@
 """Run reviews against the mock service and write the evaluation output.
 
-    uv run --locked python -m app.run --api-url http://127.0.0.1:8766
-    uv run --locked python -m app.run --cases KYC-D01 --submit-reviews
+    uv run --locked python -m kyc_copilot --api-url http://127.0.0.1:8766
+    uv run --locked python -m kyc_copilot --cases KYC-D01 --submit-reviews
 
 Writes a JSON array (docs/OUTPUT_CONTRACT.md) to --out. With --submit-reviews, each new draft is
 sent to POST /v1/reviews for a human. An identical case id and draft hash is reused from
 review_ledger.json and is not posted again. Approval happens only through the operator CLI.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -15,14 +16,13 @@ import json
 import sys
 from pathlib import Path
 
-from .ingest import ingest
-from .parsing import IngestError
-from .pipeline import CaseRun, review_case
-from .sqlite_store import SqliteKnowledgeStore
-from .tools_client import ServiceError, ToolClient
-from .tracing import JsonlTrace, metrics, trace_events
-
-ROOT = Path(__file__).resolve().parents[1]
+from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
+from kyc_copilot.adapters.tools_client import ServiceError, ToolClient
+from kyc_copilot.contracts.models import CaseRun
+from kyc_copilot.ingestion.parsing import IngestError
+from kyc_copilot.observability.tracing import JsonlTrace, metrics, trace_events
+from kyc_copilot.runner.ingest import ROOT, ingest
+from kyc_copilot.runner.pipeline import review_case
 
 
 def review_cases(
@@ -140,8 +140,7 @@ def main(argv: list[str] | None = None) -> None:
         "--submit-reviews",
         action="store_true",
         help=(
-            "POST each new draft to /v1/reviews; "
-            "reuse an identical draft from review_ledger.json"
+            "POST each new draft to /v1/reviews; reuse an identical draft from review_ledger.json"
         ),
     )
     a = p.parse_args(argv)

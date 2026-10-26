@@ -34,7 +34,7 @@ addopts = "-q"
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-src = ["src", "app", "tests"]
+src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

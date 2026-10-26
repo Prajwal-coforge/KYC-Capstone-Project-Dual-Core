@@ -9,10 +9,9 @@ import unittest
 from datetime import date
 from pathlib import Path
 
-from kyc_copilot.runner.ingest import ingest
-
 from kyc_copilot.adapters.sqlite_store import SCHEMA_VERSION, SqliteKnowledgeStore
 from kyc_copilot.ingestion.parsing import IngestError, chunk_paragraphs, parse_file
+from kyc_copilot.runner.ingest import ingest
 
 ROOT = Path(__file__).resolve().parents[1]
 DEV = ROOT / "data" / "dev"

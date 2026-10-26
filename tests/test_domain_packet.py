@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import unittest
 
-from kyc_copilot.runner.ingest import ingest
-
 from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
 from kyc_copilot.contracts.models import CaseEvidence
 from kyc_copilot.contracts.redaction import canonical_json
 from kyc_copilot.domain.packet import build_citations, build_packet
 from kyc_copilot.domain.rules import decide
 from kyc_copilot.narrative.narrator import TemplateNarrator
+from kyc_copilot.runner.ingest import ingest
 from tests.helpers import DEV
 from tests.test_rules import evidence
 

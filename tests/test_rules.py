@@ -4,8 +4,6 @@ import unittest
 from dataclasses import replace
 from datetime import date
 
-from kyc_copilot.runner.ingest import ingest
-
 from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
 from kyc_copilot.contracts.interfaces import StatutoryRule
 from kyc_copilot.domain.rules import (
@@ -14,6 +12,7 @@ from kyc_copilot.domain.rules import (
     decide,
     normalize_address,
 )
+from kyc_copilot.runner.ingest import ingest
 from tests.helpers import DEV
 
 ADDRESS = "100 Orchard Walk, Alder"

@@ -1,11 +1,9 @@
-"""Ingest policies and case documents into the application's SQLite store.
+"""Ingest policies and case documents into the SQLite store.
 
-    uv run --locked python -m app.ingest --data data/dev --db .state/app.sqlite
-    uv run --locked python -m app.ingest --data data/dev --api-url http://127.0.0.1:8766
-
-Network (GET /v1/cases) stays here; pure ingest + PolicyManifestGuard live in
+Network (GET /v1/cases) stays in the runner; pure ingest + PolicyManifestGuard live in
 `kyc_copilot.ingestion`. Do not point this at dataset.json.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -15,6 +13,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from kyc_copilot.adapters.sqlite_store import SCHEMA_VERSION, SqliteKnowledgeStore
 from kyc_copilot.contracts.models import ParsedFile
 from kyc_copilot.ingestion import (
     apply_case_links,
@@ -27,9 +26,6 @@ from kyc_copilot.ingestion import (
 )
 from kyc_copilot.ingestion.parsing import IngestError, parse_file
 
-from .sqlite_store import SCHEMA_VERSION, SqliteKnowledgeStore
-
-# Re-exports for callers/tests that imported these from app.ingest.
 __all__ = [
     "IngestError",
     "ParsedFile",
@@ -44,7 +40,16 @@ __all__ = [
     "policy_overlap_warnings",
 ]
 
-ROOT = Path(__file__).resolve().parents[1]
+
+def _repo_root() -> Path:
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "data" / "dev").is_dir() and (parent / "contracts").is_dir():
+            return parent
+    return here.parents[3]
+
+
+ROOT = _repo_root()
 DEFAULT_MANIFEST = ROOT / "contracts" / "policy_manifest.json"
 
 
@@ -83,7 +88,7 @@ def ingest(data_dir: Path, store: SqliteKnowledgeStore, api_url: str | None = No
     return report
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -94,7 +99,7 @@ def main() -> None:
         "--api-url",
         help="optional mock service URL, used only to map documents to cases",
     )
-    a = p.parse_args()
+    a = p.parse_args(argv)
     if a.db.name == "mock.sqlite":
         sys.exit("Refusing to use the mock service's state file; choose another --db path.")
     try:

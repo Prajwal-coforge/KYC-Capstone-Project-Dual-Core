@@ -1,4 +1,5 @@
 """Pure parsing of policy and case-document Markdown. File read only; no network."""
+
 from __future__ import annotations
 
 import hashlib
@@ -21,9 +22,7 @@ TITLE_RE = re.compile(r"^#[ \t]+(.+?)[ \t]*$", re.MULTILINE)
 FIELD_RE = re.compile(r"^([A-Za-z][A-Za-z ]*?):[ \t]*(\S.*?)[ \t]*$")
 FILING_JURISDICTION_RE = re.compile(r"Filing jurisdiction:\s*([^\n]+)", re.IGNORECASE)
 DECLARED_OWNER_RE = re.compile(r"Declared owner:\s*([^\n]+)", re.IGNORECASE)
-FILING_ADDRESS_RE = re.compile(
-    r"Registered address in supplied filing:\s*([^\n]+)", re.IGNORECASE
-)
+FILING_ADDRESS_RE = re.compile(r"Registered address in supplied filing:\s*([^\n]+)", re.IGNORECASE)
 
 POLICY_FIELDS = (
     "entity type",

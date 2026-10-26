@@ -11,9 +11,9 @@ Inside that shell, use the commands from `README.md` unchanged:
 
 ```sh
 uv run --locked python tools/validate_package.py
-uv run --locked python -m app.ingest --api-url http://127.0.0.1:8766
+uv run --locked python -m kyc_copilot.runner.ingest --api-url http://127.0.0.1:8766
 uv run --locked python -m unittest -v
-uv run --locked python -m app.run --submit-reviews         # review all cases, submit drafts
+uv run --locked python -m kyc_copilot --submit-reviews     # review all cases, submit drafts
 uv run --locked python tools/runtime.py pending            # human reviewer commands
 ```
 

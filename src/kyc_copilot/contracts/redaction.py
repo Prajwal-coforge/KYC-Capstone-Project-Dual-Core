@@ -1,4 +1,5 @@
 """Restricted-value handling and JSON fragments. Stdlib only; no I/O."""
+
 from __future__ import annotations
 
 import json

@@ -5,9 +5,8 @@ from __future__ import annotations
 import unittest
 from datetime import date
 
-from kyc_copilot.narrative.narrator import TemplateNarrator
-
 from kyc_copilot.contracts.models import CaseEvidence, Decision, Policy
+from kyc_copilot.narrative.narrator import TemplateNarrator
 
 
 def _evidence(**over) -> CaseEvidence:

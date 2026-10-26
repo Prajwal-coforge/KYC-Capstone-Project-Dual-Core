@@ -3,6 +3,7 @@
 This database belongs to the application. It is separate from the mock service's
 `.state/mock.sqlite`, which the application must never open or modify.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -323,9 +324,7 @@ class SqliteKnowledgeStore:
                 "INSERT INTO sources VALUES(?,?,?,?,?,?,?)",
                 (source_id, "tool", "untrusted", tool, f"api:{case_id}/{tool}", content, digest),
             )
-            self.db.execute(
-                "INSERT INTO tool_evidence VALUES(?,?,?)", (source_id, case_id, tool)
-            )
+            self.db.execute("INSERT INTO tool_evidence VALUES(?,?,?)", (source_id, case_id, tool))
             self.db.execute("COMMIT")
         except BaseException:
             self.db.execute("ROLLBACK")

@@ -6,14 +6,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from kyc_copilot.runner.ingest import ingest
-from kyc_copilot.runner.pipeline import review_case
-
 from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
 from kyc_copilot.adapters.tools_client import ToolClient
 from kyc_copilot.domain.packet import _follow_up
 from kyc_copilot.domain.rules import decide
 from kyc_copilot.narrative.narrator import TemplateNarrator
+from kyc_copilot.runner.ingest import ingest
+from kyc_copilot.runner.pipeline import review_case
 from tests.helpers import DEV, MockService
 from tests.test_rules import ADDRESS, evidence
 

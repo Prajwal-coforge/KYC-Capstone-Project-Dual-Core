@@ -1,4 +1,5 @@
 """Ports and reflective statutory rule base. Stdlib + contracts models; no I/O."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
