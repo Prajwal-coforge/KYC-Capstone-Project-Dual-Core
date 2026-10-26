@@ -177,6 +177,38 @@ class TestObservabilityBoundaries(unittest.TestCase):
             self.assertFalse(mod.startswith("kyc_copilot.domain"))
 
 
+class TestNarrativeBoundaries(unittest.TestCase):
+    """Cycle 4.2: narrative may import only kyc_copilot.contracts (+ stdlib)."""
+
+    def test_narrative_narrator_module_exports_template_narrator(self) -> None:
+        narrator = importlib.import_module("kyc_copilot.narrative.narrator")
+        path = _module_file(narrator)
+        narrative = (SRC / "kyc_copilot" / "narrative").resolve()
+        self.assertTrue(str(path).startswith(str(narrative)))
+        self.assertTrue(hasattr(narrator, "TemplateNarrator"))
+
+    def test_narrative_imports_only_contracts(self) -> None:
+        narrative_dir = SRC / "kyc_copilot" / "narrative"
+        files = [p for p in narrative_dir.glob("*.py") if p.name != "__init__.py"]
+        self.assertTrue(files, f"expected modules under {narrative_dir}")
+        for path in files:
+            with self.subTest(file=path.name):
+                for top in _imported_module_names(path):
+                    if top in sys.stdlib_module_names or top in ALLOWED_CONTRACT_THIRD_PARTY:
+                        continue
+                    if top == "kyc_copilot":
+                        continue
+                    self.fail(f"{path.name} imports disallowed top-level {top!r}")
+                for mod in _kyc_imports_from_file(path):
+                    self.assertTrue(
+                        mod == "kyc_copilot.contracts" or mod.startswith("kyc_copilot.contracts."),
+                        f"{path.name} imports {mod} outside contracts",
+                    )
+                    self.assertFalse(mod.startswith("kyc_copilot.domain"))
+                    self.assertFalse(mod.startswith("kyc_copilot.adapters"))
+                    self.assertFalse(mod.startswith("kyc_copilot.runner"))
+
+
 class TestDomainBoundaries(unittest.TestCase):
     """Cycle 3.1 / 4.1: domain may import only kyc_copilot.contracts (+ stdlib)."""
 
