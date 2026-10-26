@@ -4,6 +4,9 @@
 
 - Template narrative only; no LLM in the graded path.
 - No fuzzy name or address matching; any difference is surfaced as a mismatch (or address explanation).
+- **Address strategy (2-tier):**
+  - **Tier 1 (implemented):** In-memory deterministic `TokenMapAddressCanonicalizer` behind the `AddressCanonicalizer` protocol — zero network latency, never throws CRF/`RepeatedLabelError` on non-US jurisdictions like `Alder`/`Birch`, fails closed to `address_explanation` on unmapped differences.
+  - **Tier 2 (future production adapter):** Pluggable postal verification (`Loqate` / Smarty USPS CASS / `libpostal`) implementing `AddressCanonicalizer`, with automatic fallback to Tier 1 on timeout or parse ambiguity.
 - Address mismatch → `request_information` per written policy and D03; ADR-0004 awaits Diego confirmation.
 - Single-process SQLite knowledge store sized for a handful of concurrent reviewers, not multi-host HA.
 - Display detail level is not yet a separate analyst preference; packet always includes full citations and discrepancies.

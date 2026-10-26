@@ -1,47 +1,70 @@
-"""US address normalization helpers. Stdlib only; no I/O."""
+"""Address helpers for layers that may import contracts only (e.g. narrative).
+
+Decision-path Strategy lives in `kyc_copilot.domain.rules.TokenMapAddressCanonicalizer`.
+This module mirrors the same Tier-1 token map so narrative stays contracts-only.
+"""
 
 from __future__ import annotations
 
 import re
+import unicodedata
+from types import MappingProxyType
 
-# US street suffixes and directionals (ASSUMPTIONS.md 3.1). Anything else is compared literally,
-# so an unrecognized abbreviation counts as a material difference.
-_ABBREVIATIONS = {
-    "st": "street",
-    "ave": "avenue",
-    "av": "avenue",
-    "rd": "road",
-    "blvd": "boulevard",
-    "dr": "drive",
-    "ln": "lane",
-    "ct": "court",
-    "pl": "place",
-    "sq": "square",
-    "ter": "terrace",
-    "pkwy": "parkway",
-    "hwy": "highway",
-    "cir": "circle",
-    "ste": "suite",
-    "apt": "apartment",
-    "n": "north",
-    "s": "south",
-    "e": "east",
-    "w": "west",
-    "ne": "northeast",
-    "nw": "northwest",
-    "se": "southeast",
-    "sw": "southwest",
-}
+from kyc_copilot.contracts.interfaces import AddressCanonicalizer
+
+_ADDRESS_TOKEN_MAP = MappingProxyType(
+    {
+        "st": "street",
+        "ave": "avenue",
+        "av": "avenue",
+        "rd": "road",
+        "blvd": "boulevard",
+        "dr": "drive",
+        "ln": "lane",
+        "ct": "court",
+        "pl": "place",
+        "sq": "square",
+        "ter": "terrace",
+        "pkwy": "parkway",
+        "hwy": "highway",
+        "cir": "circle",
+        "ste": "suite",
+        "apt": "apartment",
+        "n": "north",
+        "s": "south",
+        "e": "east",
+        "w": "west",
+        "ne": "northeast",
+        "nw": "northwest",
+        "se": "southeast",
+        "sw": "southwest",
+    }
+)
 
 
-def normalize_address(text: str) -> str:
-    words = re.sub(r"[^\w\s]", " ", text.casefold()).split()
-    return " ".join(_ABBREVIATIONS.get(w, w) for w in words)
+class _TokenMapCanonicalizer:
+    def canonicalize(self, raw_address: str) -> str:
+        text = unicodedata.normalize("NFKC", raw_address).casefold()
+        words = re.sub(r"[^\w\s]", " ", text).split()
+        return " ".join(_ADDRESS_TOKEN_MAP.get(w, w) for w in words)
 
 
-def compare_addresses(a: str | None, b: str | None) -> str:
+_DEFAULT: AddressCanonicalizer = _TokenMapCanonicalizer()
+
+
+def normalize_address(text: str, canonicalizer: AddressCanonicalizer = _DEFAULT) -> str:
+    return canonicalizer.canonicalize(text)
+
+
+def compare_addresses(
+    a: str | None,
+    b: str | None,
+    canonicalizer: AddressCanonicalizer = _DEFAULT,
+) -> str:
     if not isinstance(a, str) or not isinstance(b, str) or not a.strip() or not b.strip():
         return "unknown"
     if a == b:
         return "same"
-    return "normalized_same" if normalize_address(a) == normalize_address(b) else "different"
+    left = canonicalizer.canonicalize(a)
+    right = canonicalizer.canonicalize(b)
+    return "normalized_same" if left == right else "different"

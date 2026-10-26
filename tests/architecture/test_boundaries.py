@@ -35,7 +35,7 @@ FROZEN_MODELS = (
     "Decision",
     "CaseRun",
 )
-INTERFACE_NAMES = ("KnowledgeStore", "Narrator", "StatutoryRule")
+INTERFACE_NAMES = ("KnowledgeStore", "Narrator", "StatutoryRule", "AddressCanonicalizer")
 
 
 def _module_file(module) -> Path:
@@ -113,6 +113,9 @@ class TestContractsBoundaries(unittest.TestCase):
         self.assertTrue(hasattr(rule, "_registry"))
         self.assertTrue(hasattr(rule, "ordered_rules"))
         self.assertTrue(callable(rule.ordered_rules))
+
+        canon = interfaces.AddressCanonicalizer
+        self.assertTrue(hasattr(canon, "canonicalize"))
 
     def test_contracts_modules_import_stdlib_or_pydantic_only(self) -> None:
         models = importlib.import_module("kyc_copilot.contracts.models")
@@ -230,6 +233,8 @@ class TestDomainBoundaries(unittest.TestCase):
             "decide",
             "normalize_address",
             "compare_addresses",
+            "TokenMapAddressCanonicalizer",
+            "DEFAULT_CANONICALIZER",
             "ToolAvailabilityRule",
             "CrossSourceConflictRule",
             "ScopeAndPolicyRule",
