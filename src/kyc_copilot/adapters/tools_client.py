@@ -2,6 +2,7 @@
 
 Deliberately has no operation for creating records or approving reviews: those are human-only.
 """
+
 from __future__ import annotations
 
 import json

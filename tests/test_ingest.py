@@ -1,4 +1,5 @@
 """Ingestion tests. Run: uv run --locked python -m unittest -v"""
+
 import ast
 import shutil
 import sys
@@ -8,10 +9,9 @@ import unittest
 from datetime import date
 from pathlib import Path
 
-from app.ingest import ingest
-from app.parsing import IngestError, chunk_paragraphs, parse_file
-
 from kyc_copilot.adapters.sqlite_store import SCHEMA_VERSION, SqliteKnowledgeStore
+from kyc_copilot.ingestion.parsing import IngestError, chunk_paragraphs, parse_file
+from kyc_copilot.runner.ingest import ingest
 
 ROOT = Path(__file__).resolve().parents[1]
 DEV = ROOT / "data" / "dev"
@@ -65,14 +65,16 @@ class DevDataTests(unittest.TestCase):
             self.assertIsNotNone(src, path.stem)
             self.assertEqual(src.content, path.read_bytes().decode("utf-8"))
             for c in self.store.get_chunks(src.source_id):
-                self.assertEqual(src.content[c.start_offset:c.end_offset], c.text)
+                self.assertEqual(src.content[c.start_offset : c.end_offset], c.text)
 
     def test_policy_selected_by_review_date(self):
-        cases = [("limited_company", "Alder", "2026-10-01", "KYC-POLICY-ALDER-LTD-V2", 50000),
-                 ("limited_company", "Alder", "2026-09-01", "KYC-POLICY-ALDER-LTD-V2", 50000),
-                 ("limited_company", "Alder", "2026-08-31", "KYC-POLICY-ALDER-LTD-V1", 30000),
-                 ("limited_company", "Birch", "2026-10-01", "KYC-POLICY-BIRCH-LTD-V1", 40000),
-                 ("sole_proprietor", "Alder", "2026-10-01", "KYC-POLICY-ALDER-SOLE-V1", 25000)]
+        cases = [
+            ("limited_company", "Alder", "2026-10-01", "KYC-POLICY-ALDER-LTD-V2", 50000),
+            ("limited_company", "Alder", "2026-09-01", "KYC-POLICY-ALDER-LTD-V2", 50000),
+            ("limited_company", "Alder", "2026-08-31", "KYC-POLICY-ALDER-LTD-V1", 30000),
+            ("limited_company", "Birch", "2026-10-01", "KYC-POLICY-BIRCH-LTD-V1", 40000),
+            ("sole_proprietor", "Alder", "2026-10-01", "KYC-POLICY-ALDER-SOLE-V1", 25000),
+        ]
         for entity, jurisdiction, day, expected_id, threshold in cases:
             found = self.store.find_policies(entity, jurisdiction, day)
             self.assertEqual(
@@ -98,8 +100,9 @@ class DevDataTests(unittest.TestCase):
 
     def test_case_documents_intake_first_and_untrusted(self):
         docs = self.store.case_documents("KYC-D01")
-        self.assertEqual([d.source_id for d in docs],
-                         ["KYC-D01-INTAKE", "KYC-D01-CORPORATE", "KYC-D01-IDENTITY"])
+        self.assertEqual(
+            [d.source_id for d in docs], ["KYC-D01-INTAKE", "KYC-D01-CORPORATE", "KYC-D01-IDENTITY"]
+        )
         self.assertTrue(all(d.trust == "untrusted" for d in docs))
 
     def test_intake_metadata(self):
@@ -237,6 +240,7 @@ class ToolEvidenceTests(unittest.TestCase):
 
     def test_old_schema_database_is_rebuilt(self):
         import sqlite3
+
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "old.sqlite"
             with sqlite3.connect(path) as db:
@@ -257,7 +261,7 @@ class ParsingTests(unittest.TestCase):
         self.assertEqual([c.text for c in chunks], ["# T", "first line\nsecond line", "third"])
         self.assertEqual([c.start_line for c in chunks], [1, 3, 7])
         for c in chunks:
-            self.assertEqual(text[c.start_offset:c.end_offset], c.text)
+            self.assertEqual(text[c.start_offset : c.end_offset], c.text)
 
     def test_missing_source_id_header_falls_back_to_filename(self):
         with tempfile.TemporaryDirectory() as tmp:

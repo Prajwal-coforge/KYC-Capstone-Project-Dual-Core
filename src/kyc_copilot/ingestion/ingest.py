@@ -3,6 +3,7 @@
 No network: callers (runner/adapters) pass pre-fetched case links when needed.
 Policy SHA-256 values are checked against contracts/policy_manifest.json.
 """
+
 from __future__ import annotations
 
 import dataclasses

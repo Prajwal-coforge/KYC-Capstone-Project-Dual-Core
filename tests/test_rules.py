@@ -4,16 +4,17 @@ import unittest
 from dataclasses import replace
 from datetime import date
 
-from app.ingest import ingest
-
 from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
-from kyc_copilot.contracts.interfaces import StatutoryRule
+from kyc_copilot.contracts.interfaces import AddressCanonicalizer, StatutoryRule
 from kyc_copilot.domain.rules import (
+    DEFAULT_CANONICALIZER,
     CaseEvidence,
+    TokenMapAddressCanonicalizer,
     compare_addresses,
     decide,
     normalize_address,
 )
+from kyc_copilot.runner.ingest import ingest
 from tests.helpers import DEV
 
 ADDRESS = "100 Orchard Walk, Alder"
@@ -188,6 +189,37 @@ class RulesTests(unittest.TestCase):
 
     def test_normalize_is_stable(self):
         self.assertEqual(normalize_address(" 12 Main St. "), normalize_address("12 MAIN STREET"))
+
+    def test_token_map_canonicalizer_is_address_canonicalizer_strategy(self):
+        canon = TokenMapAddressCanonicalizer()
+        self.assertIsInstance(canon, AddressCanonicalizer)
+        self.assertIsInstance(DEFAULT_CANONICALIZER, AddressCanonicalizer)
+
+    def test_token_map_applies_nfkc_and_preserves_non_us_tokens(self):
+        canon = TokenMapAddressCanonicalizer()
+        # Fullwidth digits/letters fold via NFKC; Quay/Alder stay as known-unknown tokens.
+        raw = "９ New Quay, Alder"
+        out = canon.canonicalize(raw)
+        self.assertEqual(out, "9 new quay alder")
+        # Never raises on international-style place names.
+        self.assertEqual(
+            canon.canonicalize("100 Orchard Walk, Birch"),
+            "100 orchard walk birch",
+        )
+
+    def test_compare_addresses_accepts_injected_canonicalizer(self):
+        class UpperCanonicalizer:
+            def canonicalize(self, raw_address: str) -> str:
+                return raw_address.strip().upper()
+
+        self.assertEqual(
+            compare_addresses("12 Main St", "12 MAIN ST", canonicalizer=UpperCanonicalizer()),
+            "normalized_same",
+        )
+        self.assertEqual(
+            compare_addresses("12 Main St", "12 Main Ave", canonicalizer=UpperCanonicalizer()),
+            "different",
+        )
 
     # ---- screening -----------------------------------------------------------------------
 

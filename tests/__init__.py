@@ -1,4 +1,5 @@
 """Ensure `src/` is on sys.path so `kyc_copilot` resolves without editable installs."""
+
 from __future__ import annotations
 
 import sys

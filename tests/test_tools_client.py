@@ -1,4 +1,5 @@
 """Tool client: bounded retries and failure classification, against a scripted fake server."""
+
 import json
 import socket
 import threading
@@ -156,8 +157,10 @@ class ToolClientTests(unittest.TestCase):
         first = client.fetch("C1", "customer")
         self.assertEqual((first.ok, first.attempts, first.circuit), (False, 3, "open"))
         blocked = client.fetch("C1", "customer")
-        self.assertEqual((blocked.ok, blocked.attempts, blocked.error, blocked.circuit),
-                         (False, 0, "circuit_open", "open"))
+        self.assertEqual(
+            (blocked.ok, blocked.attempts, blocked.error, blocked.circuit),
+            (False, 0, "circuit_open", "open"),
+        )
         self.assertEqual(fake.count(PATH), 3)
         clock["t"] = 30.0
         probe = client.fetch("C1", "customer")
@@ -171,8 +174,10 @@ class ToolClientTests(unittest.TestCase):
     def test_not_found_leaves_the_breaker_closed(self):
         fake, client = self.serve([(404, {"error": "not_found"}), (200, GOOD)])
         missed = client.fetch("C1", "customer")
-        self.assertEqual((missed.ok, missed.attempts, missed.error, missed.circuit),
-                         (False, 1, "not_found", "closed"))
+        self.assertEqual(
+            (missed.ok, missed.attempts, missed.error, missed.circuit),
+            (False, 1, "not_found", "closed"),
+        )
         again = client.fetch("C1", "customer")
         self.assertTrue(again.ok)
         self.assertEqual(again.circuit, "closed")
@@ -181,10 +186,12 @@ class ToolClientTests(unittest.TestCase):
     def test_next_case_can_call_a_tool_the_previous_case_exhausted(self):
         d07 = "/v1/cases/KYC-D07/registry"
         d11 = "/v1/cases/KYC-D11/registry"
-        fake = FakeService({
-            d07: [TIMEOUT],
-            d11: [(200, {"source_id": "KYC-D11-REGISTRY", "entity_id": "ENT-11"})],
-        })
+        fake = FakeService(
+            {
+                d07: [TIMEOUT],
+                d11: [(200, {"source_id": "KYC-D11-REGISTRY", "entity_id": "ENT-11"})],
+            }
+        )
         self.addCleanup(fake.stop)
         client = ToolClient(fake.url, timeout=2)
         client.sleep = lambda _delay: None

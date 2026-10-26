@@ -1,11 +1,15 @@
-"""Build the output-contract packet. Citations are exact quotes before they are kept."""
+"""Build the output-contract packet. Citations are exact quotes before they are kept.
+
+Domain layer: contracts + same-layer rules only. Store I/O goes through KnowledgeStore.
+"""
 
 from __future__ import annotations
 
-from .models import KnowledgeStore
-from .narrator import Narrator
-from .redaction import json_fragment
-from .rules import SCOPE_ID, CaseEvidence, Decision, compare_addresses
+from kyc_copilot.contracts.address import compare_addresses
+from kyc_copilot.contracts.interfaces import KnowledgeStore, Narrator
+from kyc_copilot.contracts.models import CaseEvidence, Decision, Document, Source
+from kyc_copilot.contracts.redaction import json_fragment
+from kyc_copilot.domain.rules import SCOPE_ID
 
 # Short exact phrases from KYC-SCOPE-01 that justify each reason. Phrases that are not
 # found in the supplied text are dropped, never invented.
@@ -48,6 +52,30 @@ def _line(content: str, prefix: str) -> str | None:
     return None
 
 
+def _field_quote(content: str, prefix: str) -> str | None:
+    """Exact quote starting at prefix (prefix may appear mid-line in filings)."""
+    for raw in content.split("\n"):
+        line = raw.rstrip("\r")
+        idx = line.find(prefix)
+        if idx >= 0:
+            return line[idx:].rstrip()
+    return None
+
+
+def _case_doc(
+    store: KnowledgeStore, case_id: str, doc_type: str
+) -> tuple[str, Document, Source] | None:
+    for source in store.case_documents(case_id):
+        doc = store.get_document(source.source_id)
+        if doc is None or doc.doc_type != doc_type:
+            continue
+        raw = store.get_source(source.source_id)
+        if raw is None:
+            continue
+        return source.source_id, doc, raw
+    return None
+
+
 def _follow_up(field: str, decision: Decision, evidence: CaseEvidence) -> str:
     subject = decision.facts.get("entity_id") or evidence.case_id
     if field == "identity_document":
@@ -77,6 +105,74 @@ def _follow_up(field: str, decision: Decision, evidence: CaseEvidence) -> str:
             "Please confirm which address is current and provide supporting evidence."
         )
     return f"Please provide the missing {field.replace('_', ' ')} for {subject}."
+
+
+def _append_conflict_document_citations(
+    candidates: list[tuple[str, str, str | None]],
+    decision: Decision,
+    evidence: CaseEvidence,
+    store: KnowledgeStore,
+) -> None:
+    reasons = set(decision.reasons)
+    case_id = evidence.case_id
+
+    need_corporate_address = (
+        "address_explanation" in decision.missing_information
+        or decision.address_check == "different"
+    )
+    need_corporate_jurisdiction = "jurisdiction_conflict" in reasons
+    need_corporate_owner = "owner_name_conflict" in reasons and evidence.declared_owner
+    if need_corporate_address or need_corporate_jurisdiction or need_corporate_owner:
+        found = _case_doc(store, case_id, "corporate")
+        if found is not None:
+            sid, _doc, raw = found
+            if need_corporate_address:
+                candidates.append(
+                    (
+                        "Corporate filing registered address",
+                        sid,
+                        _field_quote(raw.content, "Registered address in supplied filing:"),
+                    )
+                )
+            if need_corporate_jurisdiction:
+                candidates.append(
+                    (
+                        "Corporate filing jurisdiction",
+                        sid,
+                        _field_quote(raw.content, "Filing jurisdiction:"),
+                    )
+                )
+            if need_corporate_owner:
+                candidates.append(
+                    (
+                        "Corporate declared owner",
+                        sid,
+                        _field_quote(raw.content, "Declared owner:"),
+                    )
+                )
+
+    if "owner_name_conflict" in reasons or "birth_year_conflict" in reasons:
+        found = _case_doc(store, case_id, "identity")
+        if found is not None:
+            sid, _doc, raw = found
+            if "owner_name_conflict" in reasons:
+                candidates.append(("Identity holder name", sid, _field_quote(raw.content, "Name:")))
+            if "birth_year_conflict" in reasons:
+                candidates.append(
+                    ("Identity birth year", sid, _field_quote(raw.content, "Birth year:"))
+                )
+
+    if "entity_ref_conflict" in reasons:
+        found = _case_doc(store, case_id, "intake")
+        if found is not None:
+            sid, _doc, raw = found
+            candidates.append(
+                (
+                    "Intake entity reference",
+                    sid,
+                    _field_quote(raw.content, "Entity reference:"),
+                )
+            )
 
 
 def build_citations(
@@ -167,22 +263,8 @@ def build_citations(
         for name in d.facts.get("owner_names") or []:
             candidates.append(("Registry owner", sid, json_fragment("name", name)))
 
-    if "address_explanation" in d.missing_information or d.address_check == "different":
-        for source in store.case_documents(ev.case_id):
-            doc = store.get_document(source.source_id)
-            if doc is None or doc.doc_type != "corporate":
-                continue
-            corp = store.get_source(source.source_id)
-            if corp is None:
-                continue
-            candidates.append(
-                (
-                    "Corporate filing registered address",
-                    source.source_id,
-                    _line(corp.content, "Registered address in supplied filing:"),
-                )
-            )
-            break
+    _append_conflict_document_citations(candidates, d, ev, store)
+
     if ev.screening:
         sid = ev.screening["source_id"]
         if not d.screening_matches and ev.screening.get("matches") == []:
@@ -245,3 +327,11 @@ def build_packet(
         "narrative": narrator.write(decision, evidence),
         "incomplete_reasons": decision.incomplete_reasons,
     }
+
+
+__all__ = [
+    "SCOPE_PHRASES",
+    "build_citations",
+    "build_packet",
+    "_follow_up",
+]

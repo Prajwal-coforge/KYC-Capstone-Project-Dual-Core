@@ -1,9 +1,10 @@
 """Ports and reflective statutory rule base. Stdlib + contracts models; no I/O."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import date
-from typing import ClassVar, Protocol
+from typing import ClassVar, Protocol, runtime_checkable
 
 from .models import CaseEvidence, Chunk, Decision, Document, Policy, Source
 
@@ -28,6 +29,13 @@ class KnowledgeStore(Protocol):
 
 class Narrator(Protocol):
     def write(self, decision: Decision, evidence: CaseEvidence) -> str: ...
+
+
+@runtime_checkable
+class AddressCanonicalizer(Protocol):
+    """Deterministic address normalization strategy (no network, never invents a winner)."""
+
+    def canonicalize(self, raw_address: str) -> str: ...
 
 
 class StatutoryRule(ABC):

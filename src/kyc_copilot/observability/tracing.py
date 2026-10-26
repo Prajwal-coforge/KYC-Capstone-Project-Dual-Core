@@ -3,6 +3,7 @@
 One line per tool call and one line per decision. Payloads, documents, and
 restricted keys such as private_token are never written.
 """
+
 from __future__ import annotations
 
 import json

@@ -3,22 +3,14 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
 
-from .models import KnowledgeStore
-from .narrator import Narrator, TemplateNarrator
-from .packet import build_packet
-from .redaction import canonical_json, redact
-from .rules import CaseEvidence, Decision, decide
-from .tools_client import TOOLS, ToolClient, ToolResult
-
-
-@dataclass(frozen=True)
-class CaseRun:
-    packet: dict
-    decision: Decision
-    tool_results: dict[str, ToolResult]
-    seconds: float
+from kyc_copilot.adapters.redaction import canonical_json, redact
+from kyc_copilot.adapters.tools_client import TOOLS, ToolClient, ToolResult
+from kyc_copilot.contracts.interfaces import KnowledgeStore, Narrator
+from kyc_copilot.contracts.models import CaseEvidence, CaseRun
+from kyc_copilot.domain.packet import build_packet
+from kyc_copilot.domain.rules import decide
+from kyc_copilot.narrative.narrator import TemplateNarrator
 
 
 def gather_evidence(
@@ -50,7 +42,8 @@ def gather_evidence(
             continue
         clean = redact(result.payload)  # restricted values never go further than this line
         try:
-            store.save_tool_evidence(case_id, tool, clean["source_id"], canonical_json(clean))
+            save = store.save_tool_evidence
+            save(case_id, tool, clean["source_id"], canonical_json(clean))
         except ValueError:  # a tool claimed the ID of a policy or document: do not trust it
             failed.append(tool)
             continue
@@ -78,7 +71,10 @@ def gather_evidence(
 
 
 def review_case(
-    case_id: str, client: ToolClient, store: KnowledgeStore, narrator: Narrator | None = None
+    case_id: str,
+    client: ToolClient,
+    store: KnowledgeStore,
+    narrator: Narrator | None = None,
 ) -> CaseRun:
     started = time.monotonic()
     evidence, results, intake_id = gather_evidence(case_id, client, store)

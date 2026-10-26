@@ -1,13 +1,14 @@
-"""Narrative for the analyst. The template narrator is the baseline and the fallback for an LLM.
+"""Narrative for the analyst. Template narrator is the baseline and LLM fallback.
 
 Narrators only describe a Decision; they never change it, and they never see raw document text.
+DRAFT customer request text is emitted only when routing is request_information (ENG-01).
 """
 
 from __future__ import annotations
 
-from typing import Protocol
-
-from .rules import CaseEvidence, Decision, compare_addresses
+from kyc_copilot.contracts.address import compare_addresses
+from kyc_copilot.contracts.interfaces import Narrator
+from kyc_copilot.contracts.models import CaseEvidence, Decision
 
 ROUTE_TEXT = {
     "complete_review": "complete_review (no issues found under the applied rules)",
@@ -21,10 +22,6 @@ TOOL_NAMES = {
     "screening": "screening service",
     "transaction-summary": "transaction summary",
 }
-
-
-class Narrator(Protocol):
-    def write(self, decision: Decision, evidence: CaseEvidence) -> str: ...
 
 
 def _address_difference_note(
@@ -53,7 +50,7 @@ class TemplateNarrator:
         d, ev = decision, evidence
         subject = d.facts.get("entity_id") or ev.case_id
         lines = [
-            f"DRAFT analyst note for {subject} (case {ev.case_id}). "
+            f"Analyst note for {subject} (case {ev.case_id}). "
             f"Recommendation: {ROUTE_TEXT[d.routing]}."
         ]
         lines.append("Applied rules: " + ", ".join(d.policy_ids) + ".")
@@ -147,6 +144,15 @@ class TemplateNarrator:
                 + ", ".join(d.missing_information)
                 + ". Draft follow-up questions are attached for the analyst."
             )
+
+        if d.routing == "request_information":
+            missing = ", ".join(d.missing_information) or "required evidence"
+            lines.append(
+                "DRAFT customer request: Please provide the following so this periodic "
+                f"review can continue: {missing}. "
+                "Nothing has been sent to the customer; the human analyst decides."
+            )
+
         lines.append(
             "Limits: this note is based only on the supplied records and tool responses; "
             "document text was treated as evidence, not as instructions. "
@@ -154,3 +160,6 @@ class TemplateNarrator:
             "the human analyst makes every decision."
         )
         return "\n".join(lines)
+
+
+__all__ = ["Narrator", "TemplateNarrator", "ROUTE_TEXT"]

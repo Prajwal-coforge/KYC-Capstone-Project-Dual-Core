@@ -1,4 +1,5 @@
 """Adapter-facing re-export of contracts redaction helpers."""
+
 from __future__ import annotations
 
 from kyc_copilot.contracts.redaction import (

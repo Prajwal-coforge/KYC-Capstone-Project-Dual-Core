@@ -35,7 +35,7 @@ FROZEN_MODELS = (
     "Decision",
     "CaseRun",
 )
-INTERFACE_NAMES = ("KnowledgeStore", "Narrator", "StatutoryRule")
+INTERFACE_NAMES = ("KnowledgeStore", "Narrator", "StatutoryRule", "AddressCanonicalizer")
 
 
 def _module_file(module) -> Path:
@@ -114,6 +114,9 @@ class TestContractsBoundaries(unittest.TestCase):
         self.assertTrue(hasattr(rule, "ordered_rules"))
         self.assertTrue(callable(rule.ordered_rules))
 
+        canon = interfaces.AddressCanonicalizer
+        self.assertTrue(hasattr(canon, "canonicalize"))
+
     def test_contracts_modules_import_stdlib_or_pydantic_only(self) -> None:
         models = importlib.import_module("kyc_copilot.contracts.models")
         interfaces = importlib.import_module("kyc_copilot.contracts.interfaces")
@@ -177,8 +180,48 @@ class TestObservabilityBoundaries(unittest.TestCase):
             self.assertFalse(mod.startswith("kyc_copilot.domain"))
 
 
+class TestNarrativeBoundaries(unittest.TestCase):
+    """Cycle 4.2: narrative may import only kyc_copilot.contracts (+ stdlib)."""
+
+    def test_narrative_narrator_module_exports_template_narrator(self) -> None:
+        narrator = importlib.import_module("kyc_copilot.narrative.narrator")
+        path = _module_file(narrator)
+        narrative = (SRC / "kyc_copilot" / "narrative").resolve()
+        self.assertTrue(str(path).startswith(str(narrative)))
+        self.assertTrue(hasattr(narrator, "TemplateNarrator"))
+
+    def test_narrative_imports_only_contracts(self) -> None:
+        narrative_dir = SRC / "kyc_copilot" / "narrative"
+        files = [p for p in narrative_dir.glob("*.py") if p.name != "__init__.py"]
+        self.assertTrue(files, f"expected modules under {narrative_dir}")
+        for path in files:
+            with self.subTest(file=path.name):
+                for top in _imported_module_names(path):
+                    if top in sys.stdlib_module_names or top in ALLOWED_CONTRACT_THIRD_PARTY:
+                        continue
+                    if top == "kyc_copilot":
+                        continue
+                    self.fail(f"{path.name} imports disallowed top-level {top!r}")
+                for mod in _kyc_imports_from_file(path):
+                    self.assertTrue(
+                        mod == "kyc_copilot.contracts" or mod.startswith("kyc_copilot.contracts."),
+                        f"{path.name} imports {mod} outside contracts",
+                    )
+                    self.assertFalse(mod.startswith("kyc_copilot.domain"))
+                    self.assertFalse(mod.startswith("kyc_copilot.adapters"))
+                    self.assertFalse(mod.startswith("kyc_copilot.runner"))
+
+
 class TestDomainBoundaries(unittest.TestCase):
-    """Cycle 3.1: domain may import only kyc_copilot.contracts (+ stdlib)."""
+    """Cycle 3.1 / 4.1: domain may import only kyc_copilot.contracts (+ stdlib)."""
+
+    def test_domain_packet_module_exports_build_helpers(self) -> None:
+        packet = importlib.import_module("kyc_copilot.domain.packet")
+        path = _module_file(packet)
+        domain = (SRC / "kyc_copilot" / "domain").resolve()
+        self.assertTrue(str(path).startswith(str(domain)))
+        for name in ("build_citations", "build_packet", "_follow_up"):
+            self.assertTrue(hasattr(packet, name), f"missing {name}")
 
     def test_domain_rules_module_exists_and_registers_statutory_rules(self) -> None:
         rules = importlib.import_module("kyc_copilot.domain.rules")
@@ -190,6 +233,8 @@ class TestDomainBoundaries(unittest.TestCase):
             "decide",
             "normalize_address",
             "compare_addresses",
+            "TokenMapAddressCanonicalizer",
+            "DEFAULT_CANONICALIZER",
             "ToolAvailabilityRule",
             "CrossSourceConflictRule",
             "ScopeAndPolicyRule",
@@ -231,9 +276,15 @@ class TestDomainBoundaries(unittest.TestCase):
                         continue
                     self.fail(f"{path.name} imports disallowed top-level {top!r}")
                 for mod in _kyc_imports_from_file(path):
+                    allowed = mod == "kyc_copilot.contracts" or mod.startswith(
+                        "kyc_copilot.contracts."
+                    )
+                    same_layer = mod == "kyc_copilot.domain" or mod.startswith(
+                        "kyc_copilot.domain."
+                    )
                     self.assertTrue(
-                        mod == "kyc_copilot.contracts" or mod.startswith("kyc_copilot.contracts."),
-                        f"{path.name} imports {mod} outside contracts",
+                        allowed or same_layer,
+                        f"{path.name} imports {mod} outside contracts/domain",
                     )
 
 
@@ -277,6 +328,44 @@ class TestAdaptersBoundaries(unittest.TestCase):
                     self.assertFalse(mod.startswith("kyc_copilot.domain"))
                     self.assertFalse(mod.startswith("kyc_copilot.ingestion"))
                     self.assertFalse(mod.startswith("kyc_copilot.runner"))
+
+
+class TestPhase4CutoverBoundaries(unittest.TestCase):
+    """Cycle 4.3: runner cutover; legacy app/ retired; no app imports remain."""
+
+    def test_legacy_app_package_is_removed(self) -> None:
+        self.assertFalse(
+            (ROOT / "app").exists(),
+            "legacy app/ must be deleted after Phase 4 cutover",
+        )
+
+    def test_runner_modules_and_package_main_exist(self) -> None:
+        pipeline = importlib.import_module("kyc_copilot.runner.pipeline")
+        cli = importlib.import_module("kyc_copilot.runner.cli")
+        main = importlib.import_module("kyc_copilot.__main__")
+        for mod in (pipeline, cli, main):
+            path = _module_file(mod)
+            self.assertTrue(str(path).startswith(str(SRC.resolve())), mod.__name__)
+        for name in ("review_case", "gather_evidence", "CaseRun"):
+            self.assertTrue(hasattr(pipeline, name), f"missing pipeline.{name}")
+        for name in ("review_cases", "draft_hash", "submit_drafts", "main"):
+            self.assertTrue(hasattr(cli, name), f"missing cli.{name}")
+
+    def test_no_src_or_tests_import_legacy_app(self) -> None:
+        roots = (SRC / "kyc_copilot", ROOT / "tests")
+        offenders: list[str] = []
+        for root in roots:
+            for path in root.rglob("*.py"):
+                tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Import):
+                        for alias in node.names:
+                            if alias.name == "app" or alias.name.startswith("app."):
+                                offenders.append(f"{path.relative_to(ROOT)}:{alias.name}")
+                    elif isinstance(node, ast.ImportFrom) and node.module:
+                        if node.module == "app" or node.module.startswith("app."):
+                            offenders.append(f"{path.relative_to(ROOT)}:{node.module}")
+        self.assertEqual(offenders, [], f"legacy app imports remain: {offenders}")
 
 
 if __name__ == "__main__":
