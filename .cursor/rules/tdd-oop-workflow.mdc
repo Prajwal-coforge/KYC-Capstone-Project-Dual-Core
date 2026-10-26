@@ -1,0 +1,56 @@
+---
+description: Strict Red-Green-Refactor TDD, src/kyc_copilot layer imports, StatutoryRule OOP, ENG-01 guards
+alwaysApply: true
+---
+
+# TDD + OOP workflow (`src/kyc_copilot/`)
+
+Authority order: ENG-01 → KYC-SCOPE-01 / dated policies → `docs/OUTPUT_CONTRACT.md` → `AGENTS.md` → this rule → ADRs.
+Companion: `docs/TDD_AND_OOP_STRATEGY.md`.
+
+## Hard constraints
+
+- Python 3.12. **Approved third-party:** `pydantic` (runtime/contracts), `pytest` + `ruff` (dev). Still ban `requests` / `httpx` unless a human expands the allow-list.
+- Boundary models: Pydantic v2 `@dataclass(config=ConfigDict(frozen=True))` (validated + frozen).
+- Run tests: `PYTHONPATH=src:. python -m pytest` or `python -m unittest` (Docker: `uv run --locked`). Never invent eval scores.
+- Lint: `uv run --locked ruff check` / `ruff format`.
+- Never edit client paths: `tools/`, `data/`, `feedback/`, `examples/`, `BRIEF.md`, `docs/API.md`, `docs/OUTPUT_CONTRACT.md`, `docs/POLICY_GUIDE.md`, `docs/ASSESSMENT.md`.
+- Never commit / push / amend / merge unless the human asks in that turn. Open a PR before every major coding release; human owns commits unless they ask otherwise.
+- Banned: gold/`dataset.json`/faults for decisions; `POST /v1/records`; hardcoded `KYC-Dnn`; `date.today()`/`datetime.now()` for review dates; logging `private_token`; retries outside max-3.
+
+## Red → Green → Refactor (every cycle)
+
+1. **RED**: Write/update test in `tests/` first. Run pytest/unittest. Show failure for the right reason. No production code before that failure.
+2. **GREEN**: Minimal code in `src/kyc_copilot/<layer>/` so new + existing tests pass.
+3. **REFACTOR**: Deduplicate; keep suite green; keep ruff clean on touched files.
+4. **STOP**: Summarize files + conventional commit message. Wait for human go-ahead before the next cycle.
+
+During Phases 1–3, `app/` may re-export migrated symbols. Phase 4 deletes `app/` and locks boundaries with AST tests.
+
+## Layer imports (`src/kyc_copilot/`)
+
+| Package | May import | Must not |
+|---|---|---|
+| `contracts` | stdlib + `pydantic` | network, files, LLM, other layers |
+| `ingestion` | `contracts` | network (`urllib`), model |
+| `domain` | `contracts` | I/O, SQLite, HTTP, clock, model |
+| `narrative` | `contracts` | raw docs, mock server |
+| `observability` | `contracts` | domain rules, network |
+| `adapters` | `contracts`, `observability` | domain rules |
+| `runner` | all layers | — |
+
+One primary layer per PR unless a human approved multi-layer work. Contract changes get their own PR when practical.
+
+## OOP & ENG-01
+
+- Domain checks are concrete `StatutoryRule(ABC)` subclasses: `rule_id`, `precedence`, `__init_subclass__` auto-register; `ordered_rules()` sorts by `(precedence, rule_id)`.
+- Policy SHA-256 vs `contracts/policy_manifest.json`: known mismatch → `IngestError` (stop). New file not in manifest → maintenance warning `new_policy_file_not_loaded:<source_id>`; **do not** load into active policies.
+- Docs by source-id suffix (`-INTAKE`, `-CORPORATE`, `-IDENTITY`), never list order.
+- Non-address conflicts (jurisdiction, entity ref, owner/holder, birth year) → `escalate`; cite each source; no winner; disputed jurisdiction → `facts["jurisdiction"] = None`, `policy_ids = ["KYC-SCOPE-01"]`. Missing on one side is not a conflict.
+- 3-way address (Customer / Registry / Filing): differing present addresses → `request_information` + `address_explanation`. Missing filing is not a difference. Escalate wins routing; `missing_information` may still stay on the packet.
+- Identity missing / not attached / “not supplied” / no holder `Name:` → `identity_document`.
+- `DRAFT` customer request narrative **only** when `routing == "request_information"`.
+
+## Stop and ask
+
+Before changing contracts/routing/policy selection, adding deps beyond the allow-list, changing CI, multi-layer edits, weakening tests, or starting the next TDD cycle without human go-ahead.

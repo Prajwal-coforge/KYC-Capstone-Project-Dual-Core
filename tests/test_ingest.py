@@ -1,4 +1,5 @@
 """Ingestion tests. Run: uv run --locked python -m unittest -v"""
+import ast
 import shutil
 import sys
 import tempfile
@@ -9,10 +10,36 @@ from pathlib import Path
 
 from app.ingest import ingest
 from app.parsing import IngestError, chunk_paragraphs, parse_file
-from app.sqlite_store import SqliteKnowledgeStore
+
+from kyc_copilot.adapters.sqlite_store import SCHEMA_VERSION, SqliteKnowledgeStore
 
 ROOT = Path(__file__).resolve().parents[1]
 DEV = ROOT / "data" / "dev"
+MANIFEST = ROOT / "contracts" / "policy_manifest.json"
+INGESTION_SRC = ROOT / "src" / "kyc_copilot" / "ingestion"
+
+
+class AdapterStoreSchemaTests(unittest.TestCase):
+    """Cycle 2.2: SCHEMA_VERSION 3 persists ENG-01 Document columns."""
+
+    def test_schema_version_is_3(self):
+        self.assertEqual(SCHEMA_VERSION, 3)
+
+    def test_corporate_and_identity_columns_round_trip(self):
+        store = SqliteKnowledgeStore(":memory:")
+        self.addCleanup(store.close)
+        ingest(DEV, store)
+        corporate = store.get_document("KYC-D01-CORPORATE")
+        identity = store.get_document("KYC-D01-IDENTITY")
+        missing = store.get_document("KYC-D02-IDENTITY")
+        self.assertEqual(corporate.filing_jurisdiction, "Alder")
+        self.assertEqual(corporate.declared_owner, "Ari Vale")
+        self.assertEqual(corporate.filing_address, "100 Orchard Walk, Alder.")
+        self.assertEqual(identity.holder_name, "Ari Vale")
+        self.assertEqual(identity.birth_year, 1985)
+        self.assertEqual(identity.document_reference, "SYN-ID-D01")
+        self.assertFalse(identity.identity_not_supplied)
+        self.assertTrue(missing.identity_not_supplied)
 
 
 class DevDataTests(unittest.TestCase):
@@ -48,13 +75,20 @@ class DevDataTests(unittest.TestCase):
                  ("sole_proprietor", "Alder", "2026-10-01", "KYC-POLICY-ALDER-SOLE-V1", 25000)]
         for entity, jurisdiction, day, expected_id, threshold in cases:
             found = self.store.find_policies(entity, jurisdiction, day)
-            self.assertEqual([p.source_id for p in found], [expected_id], (entity, jurisdiction, day))
+            self.assertEqual(
+                [p.source_id for p in found],
+                [expected_id],
+                (entity, jurisdiction, day),
+            )
             self.assertEqual(found[0].edd_threshold, threshold)
 
     def test_unsupported_or_out_of_window_returns_no_policy(self):
         self.assertEqual(self.store.find_policies("sole_proprietor", "Birch", "2026-10-01"), [])
         self.assertEqual(self.store.find_policies("limited_company", "Alder", "2027-01-01"), [])
-        self.assertEqual(self.store.find_policies("limited_company", "Alder", date(2025, 12, 31)), [])
+        self.assertEqual(
+            self.store.find_policies("limited_company", "Alder", date(2025, 12, 31)),
+            [],
+        )
 
     def test_scope_procedure_is_stored_as_trusted_procedure(self):
         proc = self.store.get_procedure("KYC-SCOPE-01")
@@ -121,7 +155,12 @@ class SyncBehaviourTests(unittest.TestCase):
         ingest(self.data, self.store)
         before = self.store.counts()
         bad = self.data / "policies" / "KYC-POLICY-ALDER-LTD-V2.md"
-        bad.write_text(bad.read_text().replace("Effective from: 2026-09-01", "Effective from: someday"))
+        bad.write_text(
+            bad.read_text().replace(
+                "Effective from: 2026-09-01",
+                "Effective from: someday",
+            )
+        )
         with self.assertRaises(IngestError):
             ingest(self.data, self.store)
         self.assertEqual(self.store.counts(), before)
@@ -133,11 +172,21 @@ class SyncBehaviourTests(unittest.TestCase):
             ingest(self.data, self.store)
 
     def test_overlapping_policy_windows_warn(self):
+        # Overlap detection is pure; a known-policy byte change also fails PolicyManifestGuard
+        # on ingest (ENG-01), so exercise the warning helper on discovered files directly.
+        from kyc_copilot.ingestion.ingest import discover, policy_overlap_warnings
+
         v2 = self.data / "policies" / "KYC-POLICY-ALDER-LTD-V2.md"
-        v2.write_text(v2.read_text().replace("Effective from: 2026-09-01", "Effective from: 2026-08-01"))
-        report = ingest(self.data, self.store)
-        self.assertTrue(any("overlapping" in w for w in report["warnings"]))
-        self.assertEqual(len(self.store.find_policies("limited_company", "Alder", "2026-08-15")), 2)
+        v2.write_text(
+            v2.read_text().replace(
+                "Effective from: 2026-09-01",
+                "Effective from: 2026-08-01",
+            )
+        )
+        warnings = policy_overlap_warnings(discover(self.data))
+        self.assertTrue(any("overlapping" in w for w in warnings))
+        with self.assertRaises(IngestError):
+            ingest(self.data, self.store)
 
     def test_crlf_text_is_preserved(self):
         path = self.data / "documents" / "KYC-D01-CORPORATE.md"
@@ -155,8 +204,12 @@ class ToolEvidenceTests(unittest.TestCase):
         ingest(DEV, self.store)
 
     def test_tool_evidence_is_quotable(self):
-        self.store.save_tool_evidence("KYC-D01", "transaction-summary", "KYC-D01-TRANSACTIONS",
-                                      '{"monthly_total": 12000, "source_id": "KYC-D01-TRANSACTIONS"}')
+        self.store.save_tool_evidence(
+            "KYC-D01",
+            "transaction-summary",
+            "KYC-D01-TRANSACTIONS",
+            '{"monthly_total": 12000, "source_id": "KYC-D01-TRANSACTIONS"}',
+        )
         self.assertTrue(self.store.verify_quote("KYC-D01-TRANSACTIONS", '"monthly_total": 12000'))
         self.assertEqual(self.store.get_source("KYC-D01-TRANSACTIONS").trust, "untrusted")
 
@@ -191,7 +244,10 @@ class ToolEvidenceTests(unittest.TestCase):
             with SqliteKnowledgeStore(path) as store:
                 report = ingest(DEV, store)
                 self.assertEqual(report["added"], 41)
-                self.assertEqual(store.get_document("KYC-D02-INTAKE").identity_status, "not supplied")
+                self.assertEqual(
+                    store.get_document("KYC-D02-INTAKE").identity_status,
+                    "not supplied",
+                )
 
 
 class ParsingTests(unittest.TestCase):
@@ -211,6 +267,119 @@ class ParsingTests(unittest.TestCase):
         self.assertEqual(parsed.source.source_id, "KYC-X1-INTAKE")
         self.assertEqual(parsed.document.case_id, "KYC-X1")
         self.assertEqual(len(parsed.warnings), 1)
+
+
+class KycCopilotParsingTests(unittest.TestCase):
+    """Cycle 1.2: corporate/identity fields and suffix checks via kyc_copilot.ingestion."""
+
+    def test_corporate_filing_fields_are_parsed(self):
+        from kyc_copilot.ingestion.parsing import parse_file as kyc_parse
+
+        parsed = kyc_parse(DEV / "documents" / "KYC-D01-CORPORATE.md", "documents")
+        doc = parsed.document
+        self.assertEqual(doc.doc_type, "corporate")
+        self.assertEqual(doc.filing_jurisdiction, "Alder")
+        self.assertEqual(doc.declared_owner, "Ari Vale")
+        self.assertEqual(doc.filing_address, "100 Orchard Walk, Alder.")
+
+    def test_identity_fields_are_parsed(self):
+        from kyc_copilot.ingestion.parsing import parse_file as kyc_parse
+
+        parsed = kyc_parse(DEV / "documents" / "KYC-D01-IDENTITY.md", "documents")
+        doc = parsed.document
+        self.assertEqual(doc.doc_type, "identity")
+        self.assertEqual(doc.holder_name, "Ari Vale")
+        self.assertEqual(doc.birth_year, 1985)
+        self.assertEqual(doc.document_reference, "SYN-ID-D01")
+        self.assertFalse(doc.identity_not_supplied)
+
+    def test_identity_not_included_sets_identity_not_supplied(self):
+        from kyc_copilot.ingestion.parsing import parse_file as kyc_parse
+
+        parsed = kyc_parse(DEV / "documents" / "KYC-D02-IDENTITY.md", "documents")
+        self.assertTrue(parsed.document.identity_not_supplied)
+        self.assertIsNone(parsed.document.holder_name)
+
+    def test_unrecognized_document_suffix_is_flagged(self):
+        from kyc_copilot.ingestion.parsing import parse_file as kyc_parse
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "KYC-X1-OTHER.md"
+            path.write_text(
+                "# Odd attachment\n\nSource ID: KYC-X1-OTHER\n\nReview date: 2026-10-01\n"
+            )
+            parsed = kyc_parse(path, "documents")
+        self.assertTrue(
+            any("unrecognized_document_suffix" in w for w in parsed.warnings),
+            parsed.warnings,
+        )
+
+
+class PolicyManifestGuardTests(unittest.TestCase):
+    """Cycle 1.3: PolicyManifestGuard and no-network ingestion package."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.data = self.tmp / "data"
+        shutil.copytree(DEV, self.data)
+        self.store = SqliteKnowledgeStore(":memory:")
+        self.addCleanup(self.store.close)
+
+    def test_tampered_known_policy_hash_raises_ingest_error(self):
+        from kyc_copilot.ingestion.ingest import IngestError as KycIngestError
+        from kyc_copilot.ingestion.ingest import ingest as kyc_ingest
+
+        target = self.data / "policies" / "KYC-SCOPE-01.md"
+        target.write_bytes(target.read_bytes() + b"\n")
+        with self.assertRaises(KycIngestError) as ctx:
+            kyc_ingest(self.data, self.store, manifest_path=MANIFEST)
+        self.assertIn("KYC-SCOPE-01", str(ctx.exception))
+
+    def test_unknown_policy_file_is_not_loaded_and_warns(self):
+        from kyc_copilot.ingestion.ingest import ingest as kyc_ingest
+
+        new_policy = self.data / "policies" / "KYC-POLICY-NEW-UNLISTED.md"
+        new_policy.write_text(
+            "# Unlisted policy\n\n"
+            "Source ID: KYC-POLICY-NEW-UNLISTED\n\n"
+            "Entity type: limited_company\n"
+            "Jurisdiction: Alder\n"
+            "Effective from: 2026-01-01\n"
+            "Effective through: 2026-12-31\n"
+            "EDD monthly threshold: 99999\n"
+        )
+        before_policies = 4
+        report = kyc_ingest(self.data, self.store, manifest_path=MANIFEST)
+        self.assertTrue(
+            any(
+                w == "new_policy_file_not_loaded:KYC-POLICY-NEW-UNLISTED"
+                for w in report["warnings"]
+            ),
+            report["warnings"],
+        )
+        self.assertIsNone(self.store.get_source("KYC-POLICY-NEW-UNLISTED"))
+        self.assertEqual(self.store.counts()["policies"], before_policies)
+        self.assertEqual(
+            self.store.find_policies("limited_company", "Alder", "2026-06-01")[0].edd_threshold,
+            30000,
+        )
+
+    def test_ingestion_package_does_not_import_urllib(self):
+        forbidden = {"urllib", "urllib.request", "urllib.error", "urllib.parse"}
+        files = list(INGESTION_SRC.glob("*.py"))
+        self.assertTrue(files, f"expected Python modules under {INGESTION_SRC}")
+        for path in files:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            found: set[str] = set()
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        found.add(alias.name)
+                elif isinstance(node, ast.ImportFrom) and node.module:
+                    found.add(node.module)
+            hits = {name for name in found if name.split(".")[0] == "urllib" or name in forbidden}
+            self.assertFalse(hits, f"{path.name} imports {sorted(hits)}")
 
 
 class ServiceLinkTests(unittest.TestCase):

@@ -10,17 +10,25 @@ Missing-information fields are kept even when a higher rule wins.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Callable
 
 from .models import Policy
 
 SCOPE_ID = "KYC-SCOPE-01"
-SUPPORTED = {("limited_company", "Alder"), ("limited_company", "Birch"), ("sole_proprietor", "Alder")}
+SUPPORTED = {
+    ("limited_company", "Alder"),
+    ("limited_company", "Birch"),
+    ("sole_proprietor", "Alder"),
+}
 KNOWN_MATCH_TYPES = ("exact", "near")
-TOOL_LABELS = {"customer": "customer", "registry": "registry", "screening": "screening",
-               "transaction-summary": "transactions"}
+TOOL_LABELS = {
+    "customer": "customer",
+    "registry": "registry",
+    "screening": "screening",
+    "transaction-summary": "transactions",
+}
 
 # US street suffixes and directionals (ASSUMPTIONS.md 3.1). Anything else is compared literally,
 # so an unrecognized abbreviation counts as a material difference.
@@ -97,7 +105,10 @@ def decide(ev: CaseEvidence, find_policies: Callable[[str, str, date], list[Poli
     incomplete = [f"{TOOL_LABELS.get(t, t)}_unavailable" for t in ev.failed_tools]
     escalate += incomplete
 
-    customer, registry, screening, transactions = ev.customer, ev.registry, ev.screening, ev.transactions
+    customer = ev.customer
+    registry = ev.registry
+    screening = ev.screening
+    transactions = ev.transactions
     entity_type = customer.get("entity_type") if customer else None
     jurisdiction = customer.get("jurisdiction") if customer else None
     entity_id = (customer.get("entity_id") if customer else None) or ev.entity_ref
@@ -186,5 +197,17 @@ def decide(ev: CaseEvidence, find_policies: Callable[[str, str, date], list[Poli
         "review_date": ev.review_date.isoformat() if ev.review_date else None,
         "owner_names": _owner_names(registry),
     }
-    return Decision(classification, routing, policy_ids, policy, facts, missing,
-                    escalate + request + edd, incomplete, address_check, matches, pep, monthly_total)
+    return Decision(
+        classification,
+        routing,
+        policy_ids,
+        policy,
+        facts,
+        missing,
+        escalate + request + edd,
+        incomplete,
+        address_check,
+        matches,
+        pep,
+        monthly_total,
+    )

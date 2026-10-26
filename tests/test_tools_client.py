@@ -5,7 +5,7 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from app.tools_client import MAX_ATTEMPTS, ToolClient
+from kyc_copilot.adapters.tools_client import MAX_ATTEMPTS, ToolClient
 
 GOOD = {"source_id": "C1-CUSTOMER", "entity_id": "ENT-1"}
 
@@ -33,7 +33,10 @@ class FakeService:
             def do_GET(self):
                 fake.requests.append(("GET", self.path))
                 steps = fake.script.get(self.path, [])
-                status, body = steps.pop(0) if len(steps) > 1 else (steps[0] if steps else (404, {}))
+                if len(steps) > 1:
+                    status, body = steps.pop(0)
+                else:
+                    status, body = steps[0] if steps else (404, {})
                 self._reply(status, body)
 
             def do_POST(self):
