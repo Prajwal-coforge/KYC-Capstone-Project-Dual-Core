@@ -136,11 +136,16 @@ class SyncBehaviourTests(unittest.TestCase):
             ingest(self.data, self.store)
 
     def test_overlapping_policy_windows_warn(self):
+        # Overlap detection is pure; a known-policy byte change also fails PolicyManifestGuard
+        # on ingest (ENG-01), so exercise the warning helper on discovered files directly.
+        from kyc_copilot.ingestion.ingest import discover, policy_overlap_warnings
+
         v2 = self.data / "policies" / "KYC-POLICY-ALDER-LTD-V2.md"
         v2.write_text(v2.read_text().replace("Effective from: 2026-09-01", "Effective from: 2026-08-01"))
-        report = ingest(self.data, self.store)
-        self.assertTrue(any("overlapping" in w for w in report["warnings"]))
-        self.assertEqual(len(self.store.find_policies("limited_company", "Alder", "2026-08-15")), 2)
+        warnings = policy_overlap_warnings(discover(self.data))
+        self.assertTrue(any("overlapping" in w for w in warnings))
+        with self.assertRaises(IngestError):
+            ingest(self.data, self.store)
 
     def test_crlf_text_is_preserved(self):
         path = self.data / "documents" / "KYC-D01-CORPORATE.md"
