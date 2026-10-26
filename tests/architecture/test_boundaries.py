@@ -1,4 +1,5 @@
 """Architecture guards for src/kyc_copilot layer boundaries."""
+
 from __future__ import annotations
 
 import ast
@@ -168,13 +169,72 @@ class TestObservabilityBoundaries(unittest.TestCase):
         abs_imports = _kyc_imports_from_file(path)
         for mod in abs_imports:
             self.assertTrue(
-                mod == "kyc_copilot.contracts"
-                or mod.startswith("kyc_copilot.contracts."),
+                mod == "kyc_copilot.contracts" or mod.startswith("kyc_copilot.contracts."),
                 f"observability must only import contracts, found {mod}",
             )
             self.assertFalse(mod.startswith("kyc_copilot.adapters"))
             self.assertFalse(mod.startswith("kyc_copilot.runner"))
             self.assertFalse(mod.startswith("kyc_copilot.domain"))
+
+
+class TestDomainBoundaries(unittest.TestCase):
+    """Cycle 3.1: domain may import only kyc_copilot.contracts (+ stdlib)."""
+
+    def test_domain_rules_module_exists_and_registers_statutory_rules(self) -> None:
+        rules = importlib.import_module("kyc_copilot.domain.rules")
+        path = _module_file(rules)
+        domain = (SRC / "kyc_copilot" / "domain").resolve()
+        self.assertTrue(str(path).startswith(str(domain)))
+        for name in (
+            "CaseEvidence",
+            "decide",
+            "normalize_address",
+            "compare_addresses",
+            "ToolAvailabilityRule",
+            "CrossSourceConflictRule",
+            "ScopeAndPolicyRule",
+            "OwnershipDepthRule",
+            "ScreeningMatchRule",
+            "IdentityDocumentRule",
+            "AddressComparisonRule",
+            "EddAndPepRule",
+        ):
+            self.assertTrue(hasattr(rules, name), f"missing {name}")
+
+        from kyc_copilot.contracts.interfaces import StatutoryRule
+
+        ordered = StatutoryRule.ordered_rules()
+        self.assertEqual(
+            [r.rule_id for r in ordered],
+            [
+                "tool_availability",
+                "cross_source_conflict",
+                "scope_and_policy",
+                "ownership_depth",
+                "screening_match",
+                "identity_document",
+                "address_comparison",
+                "edd_and_pep",
+            ],
+        )
+
+    def test_domain_imports_only_contracts(self) -> None:
+        domain_dir = SRC / "kyc_copilot" / "domain"
+        files = [p for p in domain_dir.glob("*.py") if p.name != "__init__.py"]
+        self.assertTrue(files, f"expected modules under {domain_dir}")
+        for path in files:
+            with self.subTest(file=path.name):
+                for top in _imported_module_names(path):
+                    if top in sys.stdlib_module_names or top in ALLOWED_CONTRACT_THIRD_PARTY:
+                        continue
+                    if top == "kyc_copilot":
+                        continue
+                    self.fail(f"{path.name} imports disallowed top-level {top!r}")
+                for mod in _kyc_imports_from_file(path):
+                    self.assertTrue(
+                        mod == "kyc_copilot.contracts" or mod.startswith("kyc_copilot.contracts."),
+                        f"{path.name} imports {mod} outside contracts",
+                    )
 
 
 class TestAdaptersBoundaries(unittest.TestCase):

@@ -1,9 +1,11 @@
 """Deterministic routing rules (KYC-SCOPE-01 and the policy versions), including edge cases."""
+
 import unittest
 from dataclasses import replace
 from datetime import date
 
 from app.ingest import ingest
+
 from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
 from kyc_copilot.contracts.interfaces import StatutoryRule
 from kyc_copilot.domain.rules import (
@@ -15,7 +17,8 @@ from kyc_copilot.domain.rules import (
 from tests.helpers import DEV
 
 ADDRESS = "100 Orchard Walk, Alder"
-FILING_ADDRESS = "100 Orchard Walk, Alder."
+# Exact match for 3-way "same"; period-only filing diffs normalize separately.
+FILING_ADDRESS = "100 Orchard Walk, Alder"
 
 EXPECTED_RULE_ORDER = (
     "tool_availability",
@@ -56,7 +59,8 @@ def evidence(**over) -> CaseEvidence:
             "monthly_total": 12000,
             "currency": "XCR",
         },
-        filing_jurisdiction="Alder",
+        # filing_jurisdiction default None: missing is not a conflict (ENG-01).
+        filing_jurisdiction=None,
         declared_owner="Ari Vale",
         filing_address=FILING_ADDRESS,
         holder_name="Ari Vale",
@@ -107,9 +111,16 @@ class RulesTests(unittest.TestCase):
         self.assertEqual((d.classification, d.routing), ("kyc_review", "complete_review"))
         self.assertEqual(sorted(d.policy_ids), ["KYC-POLICY-ALDER-LTD-V2", "KYC-SCOPE-01"])
         self.assertEqual(d.missing_information, [])
-        self.assertEqual(d.facts, {"entity_id": "ENT-1", "entity_type": "limited_company",
-                                   "jurisdiction": "Alder", "review_date": "2026-10-01",
-                                   "owner_names": ["Ari Vale"]})
+        self.assertEqual(
+            d.facts,
+            {
+                "entity_id": "ENT-1",
+                "entity_type": "limited_company",
+                "jurisdiction": "Alder",
+                "review_date": "2026-10-01",
+                "owner_names": ["Ari Vale"],
+            },
+        )
 
     def test_all_registry_owners_are_listed_in_order(self):
         owners = [{"name": "Ari Vale"}, {"name": "Bo Lin"}]
@@ -136,8 +147,9 @@ class RulesTests(unittest.TestCase):
         self.assertEqual(d.missing_information, [])
 
     def test_unknown_identity_status_is_treated_as_missing(self):
-        self.assertEqual(self.route(evidence(identity_status=None)).missing_information,
-                         ["identity_document"])
+        self.assertEqual(
+            self.route(evidence(identity_status=None)).missing_information, ["identity_document"]
+        )
 
     def test_address_mismatch_requests_explanation(self):
         d = self.route(evidence(registry=registry(registered_address="9 New Quay, Alder")))
@@ -146,8 +158,12 @@ class RulesTests(unittest.TestCase):
         self.assertEqual(d.address_check, "different")
 
     def test_both_missing_fields_in_stable_order(self):
-        d = self.route(evidence(identity_status="not supplied",
-                                registry=registry(registered_address="9 New Quay, Alder")))
+        d = self.route(
+            evidence(
+                identity_status="not supplied",
+                registry=registry(registered_address="9 New Quay, Alder"),
+            )
+        )
         self.assertEqual(d.missing_information, ["identity_document", "address_explanation"])
 
     # ---- addresses -----------------------------------------------------------------------
@@ -190,8 +206,13 @@ class RulesTests(unittest.TestCase):
         self.assertEqual(d.routing, "escalate")
 
     def test_escalation_preserves_missing_information(self):
-        d = self.route(evidence(screening=screening(match("near")), identity_status="not supplied",
-                                registry=registry(registered_address="9 New Quay, Alder")))
+        d = self.route(
+            evidence(
+                screening=screening(match("near")),
+                identity_status="not supplied",
+                registry=registry(registered_address="9 New Quay, Alder"),
+            )
+        )
         self.assertEqual(d.routing, "escalate")
         self.assertEqual(d.missing_information, ["identity_document", "address_explanation"])
 
@@ -203,8 +224,9 @@ class RulesTests(unittest.TestCase):
     def test_total_above_threshold_triggers_edd(self):
         d = self.route(evidence(transactions=total(50001)))
         self.assertEqual(d.routing, "enhanced_due_diligence")
-        self.assertEqual(self.route(evidence(transactions=total(50000.01))).routing,
-                         "enhanced_due_diligence")
+        self.assertEqual(
+            self.route(evidence(transactions=total(50000.01))).routing, "enhanced_due_diligence"
+        )
 
     def test_pep_indicator_triggers_edd(self):
         d = self.route(evidence(screening=screening(pep=True)))
@@ -240,10 +262,14 @@ class RulesTests(unittest.TestCase):
 
     def test_sole_proprietor_threshold_boundary(self):
         sole = customer(entity_type="sole_proprietor")
-        self.assertEqual(self.route(evidence(customer=sole, transactions=total(25000))).routing,
-                         "complete_review")
-        self.assertEqual(self.route(evidence(customer=sole, transactions=total(25001))).routing,
-                         "enhanced_due_diligence")
+        self.assertEqual(
+            self.route(evidence(customer=sole, transactions=total(25000))).routing,
+            "complete_review",
+        )
+        self.assertEqual(
+            self.route(evidence(customer=sole, transactions=total(25001))).routing,
+            "enhanced_due_diligence",
+        )
 
     def test_no_policy_for_review_date_escalates_with_scope_only(self):
         d = self.route(evidence(review_date=date(2027, 1, 1)))
@@ -266,9 +292,7 @@ class RulesTests(unittest.TestCase):
 
     def test_unsupported_combination(self):
         d = self.route(
-            evidence(
-                customer=customer(entity_type="sole_proprietor", jurisdiction="Birch")
-            )
+            evidence(customer=customer(entity_type="sole_proprietor", jurisdiction="Birch"))
         )
         self.assertEqual((d.classification, d.routing), ("unsupported", "escalate"))
         self.assertEqual(d.policy_ids, ["KYC-SCOPE-01"])
