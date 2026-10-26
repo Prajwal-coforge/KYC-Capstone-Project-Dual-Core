@@ -7,8 +7,8 @@ from pathlib import Path
 from app.ingest import ingest
 from app.run import draft_hash, review_cases, submit_drafts
 from app.run import main as run_main
-from app.sqlite_store import SqliteKnowledgeStore
-from app.tools_client import ToolClient
+from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
+from kyc_copilot.adapters.tools_client import ToolClient
 
 from tests.helpers import DEV, ROOT, MockService, load_tool
 

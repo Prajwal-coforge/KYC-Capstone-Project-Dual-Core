@@ -132,5 +132,91 @@ class TestContractsBoundaries(unittest.TestCase):
                     )
 
 
+def _kyc_imports_from_file(py_file: Path) -> set[str]:
+    """Return absolute kyc_copilot.* module prefixes referenced by absolute imports."""
+    tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+    found: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.startswith("kyc_copilot"):
+                    found.add(alias.name)
+        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            if node.module.startswith("kyc_copilot"):
+                found.add(node.module)
+    return found
+
+
+class TestObservabilityBoundaries(unittest.TestCase):
+    """Cycle 2.1: observability may import only kyc_copilot.contracts (+ stdlib)."""
+
+    def test_observability_tracing_module_exists_and_imports_contracts_only(self) -> None:
+        tracing = importlib.import_module("kyc_copilot.observability.tracing")
+        path = _module_file(tracing)
+        self.assertTrue(str(path).startswith(str((SRC / "kyc_copilot" / "observability").resolve())))
+        for name in ("JsonlTrace", "metrics", "trace_events"):
+            self.assertTrue(hasattr(tracing, name), f"missing {name}")
+
+        for top in _imported_module_names(path):
+            if top in sys.stdlib_module_names:
+                continue
+            if top == "kyc_copilot":
+                continue
+            self.fail(f"observability.tracing imports disallowed top-level {top!r}")
+
+        abs_imports = _kyc_imports_from_file(path)
+        for mod in abs_imports:
+            self.assertTrue(
+                mod == "kyc_copilot.contracts"
+                or mod.startswith("kyc_copilot.contracts."),
+                f"observability must only import contracts, found {mod}",
+            )
+            self.assertFalse(mod.startswith("kyc_copilot.adapters"))
+            self.assertFalse(mod.startswith("kyc_copilot.runner"))
+            self.assertFalse(mod.startswith("kyc_copilot.domain"))
+
+
+class TestAdaptersBoundaries(unittest.TestCase):
+    """Cycle 2.2: adapters may import contracts + observability only."""
+
+    def test_adapter_modules_exist_with_expected_exports(self) -> None:
+        redaction = importlib.import_module("kyc_copilot.adapters.redaction")
+        store = importlib.import_module("kyc_copilot.adapters.sqlite_store")
+        tools = importlib.import_module("kyc_copilot.adapters.tools_client")
+
+        self.assertTrue(hasattr(redaction, "redact"))
+        self.assertTrue(hasattr(redaction, "canonical_json"))
+        self.assertTrue(hasattr(redaction, "json_fragment"))
+        self.assertEqual(store.SCHEMA_VERSION, 3)
+        self.assertTrue(hasattr(store, "SqliteKnowledgeStore"))
+        self.assertTrue(hasattr(tools, "ToolClient"))
+        self.assertTrue(hasattr(tools, "MAX_ATTEMPTS"))
+
+    def test_adapters_import_only_contracts_and_observability(self) -> None:
+        adapters_dir = SRC / "kyc_copilot" / "adapters"
+        files = list(adapters_dir.glob("*.py"))
+        self.assertTrue(files, f"expected modules under {adapters_dir}")
+        allowed_prefixes = (
+            "kyc_copilot.contracts",
+            "kyc_copilot.observability",
+        )
+        for path in files:
+            with self.subTest(file=path.name):
+                for top in _imported_module_names(path):
+                    if top in sys.stdlib_module_names or top in ALLOWED_CONTRACT_THIRD_PARTY:
+                        continue
+                    if top == "kyc_copilot":
+                        continue
+                    self.fail(f"{path.name} imports disallowed top-level {top!r}")
+                for mod in _kyc_imports_from_file(path):
+                    self.assertTrue(
+                        any(mod == p or mod.startswith(p + ".") for p in allowed_prefixes),
+                        f"{path.name} imports {mod} outside contracts/observability",
+                    )
+                    self.assertFalse(mod.startswith("kyc_copilot.domain"))
+                    self.assertFalse(mod.startswith("kyc_copilot.ingestion"))
+                    self.assertFalse(mod.startswith("kyc_copilot.runner"))
+
+
 if __name__ == "__main__":
     unittest.main()

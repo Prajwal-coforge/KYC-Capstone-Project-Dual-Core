@@ -10,12 +10,35 @@ from pathlib import Path
 
 from app.ingest import ingest
 from app.parsing import IngestError, chunk_paragraphs, parse_file
-from app.sqlite_store import SqliteKnowledgeStore
+from kyc_copilot.adapters.sqlite_store import SCHEMA_VERSION, SqliteKnowledgeStore
 
 ROOT = Path(__file__).resolve().parents[1]
 DEV = ROOT / "data" / "dev"
 MANIFEST = ROOT / "contracts" / "policy_manifest.json"
 INGESTION_SRC = ROOT / "src" / "kyc_copilot" / "ingestion"
+
+
+class AdapterStoreSchemaTests(unittest.TestCase):
+    """Cycle 2.2: SCHEMA_VERSION 3 persists ENG-01 Document columns."""
+
+    def test_schema_version_is_3(self):
+        self.assertEqual(SCHEMA_VERSION, 3)
+
+    def test_corporate_and_identity_columns_round_trip(self):
+        store = SqliteKnowledgeStore(":memory:")
+        self.addCleanup(store.close)
+        ingest(DEV, store)
+        corporate = store.get_document("KYC-D01-CORPORATE")
+        identity = store.get_document("KYC-D01-IDENTITY")
+        missing = store.get_document("KYC-D02-IDENTITY")
+        self.assertEqual(corporate.filing_jurisdiction, "Alder")
+        self.assertEqual(corporate.declared_owner, "Ari Vale")
+        self.assertEqual(corporate.filing_address, "100 Orchard Walk, Alder.")
+        self.assertEqual(identity.holder_name, "Ari Vale")
+        self.assertEqual(identity.birth_year, 1985)
+        self.assertEqual(identity.document_reference, "SYN-ID-D01")
+        self.assertFalse(identity.identity_not_supplied)
+        self.assertTrue(missing.identity_not_supplied)
 
 
 class DevDataTests(unittest.TestCase):

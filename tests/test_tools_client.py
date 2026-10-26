@@ -5,7 +5,7 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from app.tools_client import MAX_ATTEMPTS, ToolClient
+from kyc_copilot.adapters.tools_client import MAX_ATTEMPTS, ToolClient
 
 GOOD = {"source_id": "C1-CUSTOMER", "entity_id": "ENT-1"}
 
