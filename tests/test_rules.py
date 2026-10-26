@@ -4,7 +4,7 @@ import unittest
 from dataclasses import replace
 from datetime import date
 
-from app.ingest import ingest
+from kyc_copilot.runner.ingest import ingest
 
 from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
 from kyc_copilot.contracts.interfaces import StatutoryRule

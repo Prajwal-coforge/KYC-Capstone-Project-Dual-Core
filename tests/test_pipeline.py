@@ -1,12 +1,13 @@
 """End to end against the supplied mock: tools -> rules -> cited packet -> supplied evaluator."""
+
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from app.ingest import ingest
-from app.run import draft_hash, review_cases, submit_drafts
-from app.run import main as run_main
+from kyc_copilot.runner.cli import draft_hash, review_cases, submit_drafts
+from kyc_copilot.runner.cli import main as run_main
+from kyc_copilot.runner.ingest import ingest
 
 from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
 from kyc_copilot.adapters.tools_client import ToolClient
@@ -74,9 +75,7 @@ class DevSetEndToEnd(unittest.TestCase):
 
     def test_all_dev_cases_pass_the_supplied_evaluator(self):
         failing = {
-            cid: self.failed_checks(cid)
-            for cid, r in self.results.items()
-            if not r["passed"]
+            cid: self.failed_checks(cid) for cid, r in self.results.items() if not r["passed"]
         }
         self.assertEqual(failing, {})
         self.assertEqual(self.report["format_errors"], [])
@@ -130,8 +129,11 @@ class DevSetEndToEnd(unittest.TestCase):
             self.assertNotIn(RESTRICTED_MARKER.encode(), path.read_bytes(), path.name)
 
     def test_retries_are_bounded_in_the_server_audit(self):
-        reads = [json.loads(e["detail"]) | {"case_id": e["case_id"]}
-                 for e in self.mock.audit() if e["event"] == "tool_read"]
+        reads = [
+            json.loads(e["detail"]) | {"case_id": e["case_id"]}
+            for e in self.mock.audit()
+            if e["event"] == "tool_read"
+        ]
         d07 = [r for r in reads if r["case_id"] == "KYC-D07" and r["tool"] == "registry"]
         d11 = [r for r in reads if r["case_id"] == "KYC-D11" and r["tool"] == "registry"]
         self.assertEqual([r["status"] for r in d07], [503, 503, 503])
@@ -179,13 +181,30 @@ class ReviewFlowAndCli(unittest.TestCase):
 
         events = [e["event"] for e in self.mock.audit()]
         self.assertEqual(events.count("review_requested"), 2)
-        self.assertFalse({"record_created", "human_approved", "forbidden_write_attempt",
-                          "unapproved_write_attempt", "unsupported_write_attempt"} & set(events))
+        self.assertFalse(
+            {
+                "record_created",
+                "human_approved",
+                "forbidden_write_attempt",
+                "unapproved_write_attempt",
+                "unsupported_write_attempt",
+            }
+            & set(events)
+        )
 
     def test_second_identical_submit_reuses_the_same_review(self):
         out = self.dir / "results.json"
-        args = ["--api-url", self.mock.url, "--db", str(self.dir / "app.sqlite"), "--out", str(out),
-                "--cases", "KYC-D01", "--submit-reviews"]
+        args = [
+            "--api-url",
+            self.mock.url,
+            "--db",
+            str(self.dir / "app.sqlite"),
+            "--out",
+            str(out),
+            "--cases",
+            "KYC-D01",
+            "--submit-reviews",
+        ]
         run_main(args)
         first = json.loads((self.dir / "reviews.json").read_text())
         run_main(args)
@@ -200,8 +219,16 @@ class ReviewFlowAndCli(unittest.TestCase):
 
     def test_cli_refuses_the_mock_state_file(self):
         with self.assertRaises(SystemExit):
-            run_main(["--api-url", self.mock.url, "--db", str(self.dir / "mock.sqlite"),
-                      "--out", str(self.dir / "r.json")])
+            run_main(
+                [
+                    "--api-url",
+                    self.mock.url,
+                    "--db",
+                    str(self.dir / "mock.sqlite"),
+                    "--out",
+                    str(self.dir / "r.json"),
+                ]
+            )
 
 
 class ReviewLedgerTests(unittest.TestCase):
@@ -212,8 +239,11 @@ class ReviewLedgerTests(unittest.TestCase):
 
             def submit_review(self, case_id, draft):
                 self.posts.append(draft_hash(draft))
-                return {"review_id": f"rev_{len(self.posts)}", "status": "pending",
-                        "draft_hash": draft_hash(draft)}
+                return {
+                    "review_id": f"rev_{len(self.posts)}",
+                    "status": "pending",
+                    "draft_hash": draft_hash(draft),
+                }
 
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)

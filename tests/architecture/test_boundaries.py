@@ -325,5 +325,43 @@ class TestAdaptersBoundaries(unittest.TestCase):
                     self.assertFalse(mod.startswith("kyc_copilot.runner"))
 
 
+class TestPhase4CutoverBoundaries(unittest.TestCase):
+    """Cycle 4.3: runner cutover; legacy app/ retired; no app imports remain."""
+
+    def test_legacy_app_package_is_removed(self) -> None:
+        self.assertFalse(
+            (ROOT / "app").exists(),
+            "legacy app/ must be deleted after Phase 4 cutover",
+        )
+
+    def test_runner_modules_and_package_main_exist(self) -> None:
+        pipeline = importlib.import_module("kyc_copilot.runner.pipeline")
+        cli = importlib.import_module("kyc_copilot.runner.cli")
+        main = importlib.import_module("kyc_copilot.__main__")
+        for mod in (pipeline, cli, main):
+            path = _module_file(mod)
+            self.assertTrue(str(path).startswith(str(SRC.resolve())), mod.__name__)
+        for name in ("review_case", "gather_evidence", "CaseRun"):
+            self.assertTrue(hasattr(pipeline, name), f"missing pipeline.{name}")
+        for name in ("review_cases", "draft_hash", "submit_drafts", "main"):
+            self.assertTrue(hasattr(cli, name), f"missing cli.{name}")
+
+    def test_no_src_or_tests_import_legacy_app(self) -> None:
+        roots = (SRC / "kyc_copilot", ROOT / "tests")
+        offenders: list[str] = []
+        for root in roots:
+            for path in root.rglob("*.py"):
+                tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Import):
+                        for alias in node.names:
+                            if alias.name == "app" or alias.name.startswith("app."):
+                                offenders.append(f"{path.relative_to(ROOT)}:{alias.name}")
+                    elif isinstance(node, ast.ImportFrom) and node.module:
+                        if node.module == "app" or node.module.startswith("app."):
+                            offenders.append(f"{path.relative_to(ROOT)}:{node.module}")
+        self.assertEqual(offenders, [], f"legacy app imports remain: {offenders}")
+
+
 if __name__ == "__main__":
     unittest.main()
