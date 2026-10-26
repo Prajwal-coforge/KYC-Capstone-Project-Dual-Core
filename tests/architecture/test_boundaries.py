@@ -153,7 +153,8 @@ class TestObservabilityBoundaries(unittest.TestCase):
     def test_observability_tracing_module_exists_and_imports_contracts_only(self) -> None:
         tracing = importlib.import_module("kyc_copilot.observability.tracing")
         path = _module_file(tracing)
-        self.assertTrue(str(path).startswith(str((SRC / "kyc_copilot" / "observability").resolve())))
+        obs = (SRC / "kyc_copilot" / "observability").resolve()
+        self.assertTrue(str(path).startswith(str(obs)))
         for name in ("JsonlTrace", "metrics", "trace_events"):
             self.assertTrue(hasattr(tracing, name), f"missing {name}")
 

@@ -5,8 +5,8 @@ from datetime import date
 
 from app.ingest import ingest
 from app.rules import CaseEvidence, compare_addresses, decide, normalize_address
-from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
 
+from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
 from tests.helpers import DEV
 
 ADDRESS = "100 Orchard Walk, Alder"
@@ -14,14 +14,31 @@ ADDRESS = "100 Orchard Walk, Alder"
 
 def evidence(**over) -> CaseEvidence:
     base = CaseEvidence(
-        case_id="C1", review_date=date(2026, 10, 1), entity_ref="ENT-1",
-        identity_status="attached", identity_document_present=True,
-        customer={"source_id": "C1-CUSTOMER", "entity_id": "ENT-1", "entity_type": "limited_company",
-                  "jurisdiction": "Alder", "registered_address": ADDRESS},
-        registry={"source_id": "C1-REGISTRY", "registered_address": ADDRESS, "ownership_depth": 1,
-                  "owners": [{"name": "Ari Vale", "share_percent": 100}], "registry_status": "active"},
+        case_id="C1",
+        review_date=date(2026, 10, 1),
+        entity_ref="ENT-1",
+        identity_status="attached",
+        identity_document_present=True,
+        customer={
+            "source_id": "C1-CUSTOMER",
+            "entity_id": "ENT-1",
+            "entity_type": "limited_company",
+            "jurisdiction": "Alder",
+            "registered_address": ADDRESS,
+        },
+        registry={
+            "source_id": "C1-REGISTRY",
+            "registered_address": ADDRESS,
+            "ownership_depth": 1,
+            "owners": [{"name": "Ari Vale", "share_percent": 100}],
+            "registry_status": "active",
+        },
         screening={"source_id": "C1-SCREENING", "matches": [], "pep_indicator": False},
-        transactions={"source_id": "C1-TRANSACTIONS", "monthly_total": 12000, "currency": "XCR"},
+        transactions={
+            "source_id": "C1-TRANSACTIONS",
+            "monthly_total": 12000,
+            "currency": "XCR",
+        },
     )
     return replace(base, **over)
 
@@ -92,7 +109,8 @@ class RulesTests(unittest.TestCase):
         self.assertEqual(d.missing_information, ["identity_document"])
 
     def test_identity_status_is_case_and_space_insensitive(self):
-        self.assertEqual(self.route(evidence(identity_status="  Attached ")).missing_information, [])
+        d = self.route(evidence(identity_status="  Attached "))
+        self.assertEqual(d.missing_information, [])
 
     def test_unknown_identity_status_is_treated_as_missing(self):
         self.assertEqual(self.route(evidence(identity_status=None)).missing_information,
@@ -145,7 +163,8 @@ class RulesTests(unittest.TestCase):
         self.assertIn("screening_exact_match", d.reasons)
 
     def test_unrecognized_match_type_escalates(self):
-        self.assertEqual(self.route(evidence(screening=screening(match("possible")))).routing, "escalate")
+        d = self.route(evidence(screening=screening(match("possible"))))
+        self.assertEqual(d.routing, "escalate")
 
     def test_escalation_preserves_missing_information(self):
         d = self.route(evidence(screening=screening(match("near")), identity_status="not supplied",
@@ -159,7 +178,8 @@ class RulesTests(unittest.TestCase):
         self.assertEqual(self.route(evidence(transactions=total(50000))).routing, "complete_review")
 
     def test_total_above_threshold_triggers_edd(self):
-        self.assertEqual(self.route(evidence(transactions=total(50001))).routing, "enhanced_due_diligence")
+        d = self.route(evidence(transactions=total(50001)))
+        self.assertEqual(d.routing, "enhanced_due_diligence")
         self.assertEqual(self.route(evidence(transactions=total(50000.01))).routing,
                          "enhanced_due_diligence")
 
@@ -222,7 +242,11 @@ class RulesTests(unittest.TestCase):
     # ---- scope and ownership ---------------------------------------------------------------
 
     def test_unsupported_combination(self):
-        d = self.route(evidence(customer=customer(entity_type="sole_proprietor", jurisdiction="Birch")))
+        d = self.route(
+            evidence(
+                customer=customer(entity_type="sole_proprietor", jurisdiction="Birch")
+            )
+        )
         self.assertEqual((d.classification, d.routing), ("unsupported", "escalate"))
         self.assertEqual(d.policy_ids, ["KYC-SCOPE-01"])
         self.assertEqual(d.facts["entity_type"], "sole_proprietor")
@@ -245,7 +269,13 @@ class RulesTests(unittest.TestCase):
     # ---- tool outages ----------------------------------------------------------------------
 
     def test_registry_unavailable(self):
-        d = self.route(evidence(registry=None, failed_tools=("registry",), identity_status="not supplied"))
+        d = self.route(
+            evidence(
+                registry=None,
+                failed_tools=("registry",),
+                identity_status="not supplied",
+            )
+        )
         self.assertEqual(d.routing, "escalate")
         self.assertIsNone(d.facts["owner_names"])
         self.assertEqual(d.address_check, "unknown")

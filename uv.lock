@@ -23,7 +23,7 @@ wheels = [
 [[package]]
 name = "fde-kyc-training"
 version = "1.0.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
 ]

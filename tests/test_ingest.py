@@ -10,6 +10,7 @@ from pathlib import Path
 
 from app.ingest import ingest
 from app.parsing import IngestError, chunk_paragraphs, parse_file
+
 from kyc_copilot.adapters.sqlite_store import SCHEMA_VERSION, SqliteKnowledgeStore
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -74,13 +75,20 @@ class DevDataTests(unittest.TestCase):
                  ("sole_proprietor", "Alder", "2026-10-01", "KYC-POLICY-ALDER-SOLE-V1", 25000)]
         for entity, jurisdiction, day, expected_id, threshold in cases:
             found = self.store.find_policies(entity, jurisdiction, day)
-            self.assertEqual([p.source_id for p in found], [expected_id], (entity, jurisdiction, day))
+            self.assertEqual(
+                [p.source_id for p in found],
+                [expected_id],
+                (entity, jurisdiction, day),
+            )
             self.assertEqual(found[0].edd_threshold, threshold)
 
     def test_unsupported_or_out_of_window_returns_no_policy(self):
         self.assertEqual(self.store.find_policies("sole_proprietor", "Birch", "2026-10-01"), [])
         self.assertEqual(self.store.find_policies("limited_company", "Alder", "2027-01-01"), [])
-        self.assertEqual(self.store.find_policies("limited_company", "Alder", date(2025, 12, 31)), [])
+        self.assertEqual(
+            self.store.find_policies("limited_company", "Alder", date(2025, 12, 31)),
+            [],
+        )
 
     def test_scope_procedure_is_stored_as_trusted_procedure(self):
         proc = self.store.get_procedure("KYC-SCOPE-01")
@@ -147,7 +155,12 @@ class SyncBehaviourTests(unittest.TestCase):
         ingest(self.data, self.store)
         before = self.store.counts()
         bad = self.data / "policies" / "KYC-POLICY-ALDER-LTD-V2.md"
-        bad.write_text(bad.read_text().replace("Effective from: 2026-09-01", "Effective from: someday"))
+        bad.write_text(
+            bad.read_text().replace(
+                "Effective from: 2026-09-01",
+                "Effective from: someday",
+            )
+        )
         with self.assertRaises(IngestError):
             ingest(self.data, self.store)
         self.assertEqual(self.store.counts(), before)
@@ -164,7 +177,12 @@ class SyncBehaviourTests(unittest.TestCase):
         from kyc_copilot.ingestion.ingest import discover, policy_overlap_warnings
 
         v2 = self.data / "policies" / "KYC-POLICY-ALDER-LTD-V2.md"
-        v2.write_text(v2.read_text().replace("Effective from: 2026-09-01", "Effective from: 2026-08-01"))
+        v2.write_text(
+            v2.read_text().replace(
+                "Effective from: 2026-09-01",
+                "Effective from: 2026-08-01",
+            )
+        )
         warnings = policy_overlap_warnings(discover(self.data))
         self.assertTrue(any("overlapping" in w for w in warnings))
         with self.assertRaises(IngestError):
@@ -186,8 +204,12 @@ class ToolEvidenceTests(unittest.TestCase):
         ingest(DEV, self.store)
 
     def test_tool_evidence_is_quotable(self):
-        self.store.save_tool_evidence("KYC-D01", "transaction-summary", "KYC-D01-TRANSACTIONS",
-                                      '{"monthly_total": 12000, "source_id": "KYC-D01-TRANSACTIONS"}')
+        self.store.save_tool_evidence(
+            "KYC-D01",
+            "transaction-summary",
+            "KYC-D01-TRANSACTIONS",
+            '{"monthly_total": 12000, "source_id": "KYC-D01-TRANSACTIONS"}',
+        )
         self.assertTrue(self.store.verify_quote("KYC-D01-TRANSACTIONS", '"monthly_total": 12000'))
         self.assertEqual(self.store.get_source("KYC-D01-TRANSACTIONS").trust, "untrusted")
 
@@ -222,7 +244,10 @@ class ToolEvidenceTests(unittest.TestCase):
             with SqliteKnowledgeStore(path) as store:
                 report = ingest(DEV, store)
                 self.assertEqual(report["added"], 41)
-                self.assertEqual(store.get_document("KYC-D02-INTAKE").identity_status, "not supplied")
+                self.assertEqual(
+                    store.get_document("KYC-D02-INTAKE").identity_status,
+                    "not supplied",
+                )
 
 
 class ParsingTests(unittest.TestCase):
@@ -327,7 +352,10 @@ class PolicyManifestGuardTests(unittest.TestCase):
         before_policies = 4
         report = kyc_ingest(self.data, self.store, manifest_path=MANIFEST)
         self.assertTrue(
-            any(w == "new_policy_file_not_loaded:KYC-POLICY-NEW-UNLISTED" for w in report["warnings"]),
+            any(
+                w == "new_policy_file_not_loaded:KYC-POLICY-NEW-UNLISTED"
+                for w in report["warnings"]
+            ),
             report["warnings"],
         )
         self.assertIsNone(self.store.get_source("KYC-POLICY-NEW-UNLISTED"))

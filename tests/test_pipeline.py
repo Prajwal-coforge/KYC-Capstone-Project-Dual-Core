@@ -7,13 +7,23 @@ from pathlib import Path
 from app.ingest import ingest
 from app.run import draft_hash, review_cases, submit_drafts
 from app.run import main as run_main
+
 from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
 from kyc_copilot.adapters.tools_client import ToolClient
-
 from tests.helpers import DEV, ROOT, MockService, load_tool
 
-CONTRACT_FIELDS = {"case_id", "classification", "routing", "policy_ids", "facts",
-                   "missing_information", "deadline", "citations", "follow_up_questions", "narrative"}
+CONTRACT_FIELDS = {
+    "case_id",
+    "classification",
+    "routing",
+    "policy_ids",
+    "facts",
+    "missing_information",
+    "deadline",
+    "citations",
+    "follow_up_questions",
+    "narrative",
+}
 RESTRICTED_MARKER = "SYNTHETIC-PRIVATE"
 
 
@@ -63,14 +73,21 @@ class DevSetEndToEnd(unittest.TestCase):
     # ---- whole dev set -------------------------------------------------------------------------
 
     def test_all_dev_cases_pass_the_supplied_evaluator(self):
-        failing = {cid: self.failed_checks(cid) for cid, r in self.results.items() if not r["passed"]}
+        failing = {
+            cid: self.failed_checks(cid)
+            for cid, r in self.results.items()
+            if not r["passed"]
+        }
         self.assertEqual(failing, {})
         self.assertEqual(self.report["format_errors"], [])
 
     def test_every_citation_is_an_exact_quote_from_a_stored_source(self):
         for p in self.packets:
             for c in p["citations"]:
-                self.assertTrue(self.store.verify_quote(c["source_id"], c["quote"]), (p["case_id"], c))
+                self.assertTrue(
+                    self.store.verify_quote(c["source_id"], c["quote"]),
+                    (p["case_id"], c),
+                )
 
     # ---- edge cases in the dev set ---------------------------------------------------------------
 
@@ -135,15 +152,28 @@ class ReviewFlowAndCli(unittest.TestCase):
 
     def test_cli_writes_one_packet_per_requested_case_and_submits_drafts(self):
         out = self.dir / "results.json"
-        run_main(["--api-url", self.mock.url, "--db", str(self.dir / "app.sqlite"), "--out", str(out),
-                  "--cases", "KYC-D01", "KYC-D01", "KYC-D04", "--submit-reviews"])
+        run_main(
+            [
+                "--api-url",
+                self.mock.url,
+                "--db",
+                str(self.dir / "app.sqlite"),
+                "--out",
+                str(out),
+                "--cases",
+                "KYC-D01",
+                "KYC-D01",
+                "KYC-D04",
+                "--submit-reviews",
+            ]
+        )
         packets = json.loads(out.read_text())
         self.assertEqual([p["case_id"] for p in packets], ["KYC-D01", "KYC-D04"])
 
         reviews = json.loads((self.dir / "reviews.json").read_text())
         self.assertEqual([r["case_id"] for r in reviews], ["KYC-D01", "KYC-D04"])
         runtime = self.mock.runtime
-        for packet, review in zip(packets, reviews):
+        for packet, review in zip(packets, reviews, strict=True):
             self.assertEqual(review["status"], "pending")
             self.assertEqual(review["draft_hash"], runtime.digest(packet))
 

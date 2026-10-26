@@ -25,11 +25,15 @@ from .tracing import JsonlTrace, metrics, trace_events
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def review_cases(case_ids: list[str], client: ToolClient, store: SqliteKnowledgeStore) -> list[dict]:
+def review_cases(
+    case_ids: list[str], client: ToolClient, store: SqliteKnowledgeStore
+) -> list[dict]:
     return [run.packet for run in run_cases(case_ids, client, store)]
 
 
-def run_cases(case_ids: list[str], client: ToolClient, store: SqliteKnowledgeStore) -> list[CaseRun]:
+def run_cases(
+    case_ids: list[str], client: ToolClient, store: SqliteKnowledgeStore
+) -> list[CaseRun]:
     # One packet per requested case ID, even if it is requested twice.
     return [review_case(cid, client, store) for cid in dict.fromkeys(case_ids)]
 
@@ -41,7 +45,7 @@ def draft_hash(packet: dict) -> str:
 
 
 def load_review_ledger(path: Path) -> dict:
-    """Case id → draft hash → {review_id, status, draft_hash}. Missing file means no prior reviews."""
+    """Case id → draft hash → review metadata. Missing file means no prior reviews."""
     if not path.exists():
         return {}
     try:
@@ -81,8 +85,15 @@ def submit_drafts(client: ToolClient, packets: list[dict], ledger_path: Path) ->
         digest = draft_hash(packet)
         prior = _prior_review(ledger, case_id, digest)
         if prior:
-            reviews.append({"case_id": case_id, "review_id": prior["review_id"],
-                            "status": prior.get("status"), "draft_hash": digest, "reused": True})
+            reviews.append(
+                {
+                    "case_id": case_id,
+                    "review_id": prior["review_id"],
+                    "status": prior.get("status"),
+                    "draft_hash": digest,
+                    "reused": True,
+                }
+            )
             continue
         try:
             body = client.submit_review(case_id, packet)
@@ -94,7 +105,11 @@ def submit_drafts(client: ToolClient, packets: list[dict], ledger_path: Path) ->
         if server_hash != digest or not review_id:
             reviews.append({"case_id": case_id, "error": "draft_hash_mismatch"})
             continue
-        entry = {"review_id": review_id, "status": body.get("status"), "draft_hash": digest}
+        entry = {
+            "review_id": review_id,
+            "status": body.get("status"),
+            "draft_hash": digest,
+        }
         ledger.setdefault(case_id, {})[digest] = entry
         _save_review_ledger(ledger_path, ledger)
         reviews.append({"case_id": case_id, **entry})
@@ -102,16 +117,33 @@ def submit_drafts(client: ToolClient, packets: list[dict], ledger_path: Path) ->
 
 
 def main(argv: list[str] | None = None) -> None:
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     p.add_argument("--api-url", default="http://127.0.0.1:8766")
     p.add_argument("--data", type=Path, default=ROOT / "data" / "dev")
     p.add_argument("--db", type=Path, default=ROOT / ".state" / "app.sqlite")
     p.add_argument("--out", type=Path, default=ROOT / "submissions" / "results.json")
-    p.add_argument("--cases", nargs="*", help="case IDs (default: every case the service lists)")
-    p.add_argument("--trace", type=Path, default=None,
-                   help="JSONL trace path (default: trace.jsonl next to --out)")
-    p.add_argument("--submit-reviews", action="store_true",
-                   help="POST each new draft to /v1/reviews; reuse an identical draft from review_ledger.json")
+    p.add_argument(
+        "--cases",
+        nargs="*",
+        help="case IDs (default: every case the service lists)",
+    )
+    p.add_argument(
+        "--trace",
+        type=Path,
+        default=None,
+        help="JSONL trace path (default: trace.jsonl next to --out)",
+    )
+    p.add_argument(
+        "--submit-reviews",
+        action="store_true",
+        help=(
+            "POST each new draft to /v1/reviews; "
+            "reuse an identical draft from review_ledger.json"
+        ),
+    )
     a = p.parse_args(argv)
     if a.db.name == "mock.sqlite":
         sys.exit("Refusing to use the mock service's state file; choose another --db path.")
@@ -140,12 +172,17 @@ def main(argv: list[str] | None = None) -> None:
     sink.write(summary)
     for r in runs:
         attempts = {t: res.attempts for t, res in r.tool_results.items()}
-        print(f"{r.packet['case_id']}: {r.packet['routing']:<23} {r.seconds * 1000:7.1f} ms  "
-              f"attempts={attempts}")
+        print(
+            f"{r.packet['case_id']}: {r.packet['routing']:<23} "
+            f"{r.seconds * 1000:7.1f} ms  attempts={attempts}"
+        )
     print(f"Wrote {len(packets)} packets to {a.out}")
     print(f"Trace: {trace_path}")
-    print(f"Metrics: success_rate={summary['success_rate']:.0%}  p95_ms={summary['p95_ms']}  "
-          f"alert={summary['alert']}  reason={summary['alert_reason']}")
+    print(
+        f"Metrics: success_rate={summary['success_rate']:.0%}  "
+        f"p95_ms={summary['p95_ms']}  "
+        f"alert={summary['alert']}  reason={summary['alert_reason']}"
+    )
 
     if a.submit_reviews:
         ledger_path = a.out.parent / "review_ledger.json"

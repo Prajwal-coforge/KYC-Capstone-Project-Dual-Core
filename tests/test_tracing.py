@@ -86,7 +86,8 @@ class TraceTests(unittest.TestCase):
 
         one_slow = [{"event": "decision", "latency_ms": 10.0} for _ in range(19)]
         one_slow.append({"event": "decision", "latency_ms": 16_000.0})
-        self.assertFalse(metrics(one_slow)["alert"])  # 19/20 is still 95%; p95 excludes the worst 5%
+        # 19/20 is still 95%; p95 excludes the worst 5%
+        self.assertFalse(metrics(one_slow)["alert"])
 
         slow = [{"event": "decision", "latency_ms": 10.0} for _ in range(18)]
         slow.extend({"event": "decision", "latency_ms": 16_000.0} for _ in range(2))

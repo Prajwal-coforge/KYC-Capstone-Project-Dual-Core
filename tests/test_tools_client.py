@@ -33,7 +33,10 @@ class FakeService:
             def do_GET(self):
                 fake.requests.append(("GET", self.path))
                 steps = fake.script.get(self.path, [])
-                status, body = steps.pop(0) if len(steps) > 1 else (steps[0] if steps else (404, {}))
+                if len(steps) > 1:
+                    status, body = steps.pop(0)
+                else:
+                    status, body = steps[0] if steps else (404, {})
                 self._reply(status, body)
 
             def do_POST(self):
