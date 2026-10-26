@@ -239,9 +239,15 @@ class TestDomainBoundaries(unittest.TestCase):
                         continue
                     self.fail(f"{path.name} imports disallowed top-level {top!r}")
                 for mod in _kyc_imports_from_file(path):
+                    allowed = mod == "kyc_copilot.contracts" or mod.startswith(
+                        "kyc_copilot.contracts."
+                    )
+                    same_layer = mod == "kyc_copilot.domain" or mod.startswith(
+                        "kyc_copilot.domain."
+                    )
                     self.assertTrue(
-                        mod == "kyc_copilot.contracts" or mod.startswith("kyc_copilot.contracts."),
-                        f"{path.name} imports {mod} outside contracts",
+                        allowed or same_layer,
+                        f"{path.name} imports {mod} outside contracts/domain",
                     )
 
 

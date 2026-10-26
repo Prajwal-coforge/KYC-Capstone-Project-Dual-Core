@@ -6,9 +6,11 @@ import unittest
 
 from app.ingest import ingest
 from app.narrator import TemplateNarrator
-from kyc_copilot.domain.packet import build_citations, build_packet
 
 from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
+from kyc_copilot.contracts.models import CaseEvidence
+from kyc_copilot.contracts.redaction import canonical_json
+from kyc_copilot.domain.packet import build_citations, build_packet
 from kyc_copilot.domain.rules import decide
 from tests.helpers import DEV
 from tests.test_rules import evidence
@@ -19,6 +21,18 @@ def _quotes_by_source(citations: list[dict]) -> dict[str, list[str]]:
     for c in citations:
         out.setdefault(c["source_id"], []).append(c["quote"])
     return out
+
+
+def _seed_tool_evidence(store: SqliteKnowledgeStore, ev: CaseEvidence) -> None:
+    """Persist customer/registry payloads so json_fragment citations verify."""
+    if ev.customer is not None:
+        store.save_tool_evidence(
+            ev.case_id, "customer", ev.customer["source_id"], canonical_json(ev.customer)
+        )
+    if ev.registry is not None:
+        store.save_tool_evidence(
+            ev.case_id, "registry", ev.registry["source_id"], canonical_json(ev.registry)
+        )
 
 
 class DomainPacketDiscrepancyCitationTests(unittest.TestCase):
@@ -57,6 +71,7 @@ class DomainPacketDiscrepancyCitationTests(unittest.TestCase):
                 "registry_status": "active",
             },
         )
+        _seed_tool_evidence(self.store, ev)
         decision = decide(ev, self.find)
         self.assertEqual(decision.routing, "escalate")
         self.assertIn("jurisdiction_conflict", decision.reasons)
@@ -94,6 +109,7 @@ class DomainPacketDiscrepancyCitationTests(unittest.TestCase):
                 "registry_status": "active",
             },
         )
+        _seed_tool_evidence(self.store, ev)
         decision = decide(ev, self.find)
         self.assertIn("owner_name_conflict", decision.reasons)
         packet = build_packet(decision, ev, "KYC-D01-INTAKE", self.store, TemplateNarrator())
@@ -130,6 +146,7 @@ class DomainPacketDiscrepancyCitationTests(unittest.TestCase):
                 "registry_status": "active",
             },
         )
+        _seed_tool_evidence(self.store, ev)
         decision = decide(ev, self.find)
         self.assertIn("address_explanation", decision.missing_information)
         cites = build_citations(decision, ev, "KYC-D03-INTAKE", self.store)
