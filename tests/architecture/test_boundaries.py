@@ -178,7 +178,15 @@ class TestObservabilityBoundaries(unittest.TestCase):
 
 
 class TestDomainBoundaries(unittest.TestCase):
-    """Cycle 3.1: domain may import only kyc_copilot.contracts (+ stdlib)."""
+    """Cycle 3.1 / 4.1: domain may import only kyc_copilot.contracts (+ stdlib)."""
+
+    def test_domain_packet_module_exports_build_helpers(self) -> None:
+        packet = importlib.import_module("kyc_copilot.domain.packet")
+        path = _module_file(packet)
+        domain = (SRC / "kyc_copilot" / "domain").resolve()
+        self.assertTrue(str(path).startswith(str(domain)))
+        for name in ("build_citations", "build_packet", "_follow_up"):
+            self.assertTrue(hasattr(packet, name), f"missing {name}")
 
     def test_domain_rules_module_exists_and_registers_statutory_rules(self) -> None:
         rules = importlib.import_module("kyc_copilot.domain.rules")
