@@ -10,17 +10,19 @@ Companion: `docs/TDD_AND_OOP_STRATEGY.md`.
 
 ## Hard constraints
 
-- Python 3.12 **stdlib only** (`pyproject.toml` `dependencies = []`). No pydantic, pytest, requests, httpx.
-- Run tests: `PYTHONPATH=src:. python3 -m unittest` (or Docker equivalent). Never invent eval scores.
+- Python 3.12. **Approved third-party:** `pydantic` (runtime/contracts), `pytest` + `ruff` (dev). Still ban `requests` / `httpx` unless a human expands the allow-list.
+- Boundary models: Pydantic v2 `@dataclass(config=ConfigDict(frozen=True))` (validated + frozen).
+- Run tests: `PYTHONPATH=src:. python -m pytest` or `python -m unittest` (Docker: `uv run --locked`). Never invent eval scores.
+- Lint: `uv run --locked ruff check` / `ruff format`.
 - Never edit client paths: `tools/`, `data/`, `feedback/`, `examples/`, `BRIEF.md`, `docs/API.md`, `docs/OUTPUT_CONTRACT.md`, `docs/POLICY_GUIDE.md`, `docs/ASSESSMENT.md`.
 - Never commit / push / amend / merge unless the human asks in that turn. Open a PR before every major coding release; human owns commits unless they ask otherwise.
 - Banned: gold/`dataset.json`/faults for decisions; `POST /v1/records`; hardcoded `KYC-Dnn`; `date.today()`/`datetime.now()` for review dates; logging `private_token`; retries outside max-3.
 
 ## Red → Green → Refactor (every cycle)
 
-1. **RED**: Write/update test in `tests/` first. Run unittest. Show failure for the right reason. No production code before that failure.
+1. **RED**: Write/update test in `tests/` first. Run pytest/unittest. Show failure for the right reason. No production code before that failure.
 2. **GREEN**: Minimal code in `src/kyc_copilot/<layer>/` so new + existing tests pass.
-3. **REFACTOR**: Deduplicate; keep suite green.
+3. **REFACTOR**: Deduplicate; keep suite green; keep ruff clean on touched files.
 4. **STOP**: Summarize files + conventional commit message. Wait for human go-ahead before the next cycle.
 
 During Phases 1–3, `app/` may re-export migrated symbols. Phase 4 deletes `app/` and locks boundaries with AST tests.
@@ -29,7 +31,7 @@ During Phases 1–3, `app/` may re-export migrated symbols. Phase 4 deletes `app
 
 | Package | May import | Must not |
 |---|---|---|
-| `contracts` | stdlib only | network, files, model, other layers |
+| `contracts` | stdlib + `pydantic` | network, files, LLM, other layers |
 | `ingestion` | `contracts` | network (`urllib`), model |
 | `domain` | `contracts` | I/O, SQLite, HTTP, clock, model |
 | `narrative` | `contracts` | raw docs, mock server |
@@ -51,4 +53,4 @@ One primary layer per PR unless a human approved multi-layer work. Contract chan
 
 ## Stop and ask
 
-Before changing contracts/routing/policy selection, adding deps, changing CI, multi-layer edits, weakening tests, or starting the next TDD cycle without human go-ahead.
+Before changing contracts/routing/policy selection, adding deps beyond the allow-list, changing CI, multi-layer edits, weakening tests, or starting the next TDD cycle without human go-ahead.

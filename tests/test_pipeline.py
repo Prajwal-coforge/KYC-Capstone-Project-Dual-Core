@@ -5,9 +5,11 @@ import unittest
 from pathlib import Path
 
 from app.ingest import ingest
-from app.run import draft_hash, main as run_main, review_cases, submit_drafts
+from app.run import draft_hash, review_cases, submit_drafts
+from app.run import main as run_main
 from app.sqlite_store import SqliteKnowledgeStore
 from app.tools_client import ToolClient
+
 from tests.helpers import DEV, ROOT, MockService, load_tool
 
 CONTRACT_FIELDS = {"case_id", "classification", "routing", "policy_ids", "facts",

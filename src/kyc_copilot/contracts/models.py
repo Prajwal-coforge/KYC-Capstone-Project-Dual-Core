@@ -1,16 +1,21 @@
-"""Frozen boundary models shared across layers. Stdlib only; no I/O."""
+"""Frozen boundary models shared across layers. Stdlib + Pydantic; no I/O."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from datetime import date
+from typing import Any
+
+from pydantic import ConfigDict, Field
+from pydantic.dataclasses import dataclass
 
 # Policies and procedures are rules we maintain. Case documents are customer-supplied
 # evidence: quotable data, never instructions.
 TRUSTED = "trusted"
 UNTRUSTED = "untrusted"
 
+_FROZEN = ConfigDict(frozen=True)
 
-@dataclass(frozen=True)
+
+@dataclass(config=_FROZEN)
 class Source:
     source_id: str
     kind: str  # policy | procedure | document | tool
@@ -21,7 +26,7 @@ class Source:
     sha256: str
 
 
-@dataclass(frozen=True)
+@dataclass(config=_FROZEN)
 class Policy:
     source_id: str
     entity_type: str
@@ -31,7 +36,7 @@ class Policy:
     edd_threshold: int | float
 
 
-@dataclass(frozen=True)
+@dataclass(config=_FROZEN)
 class Document:
     source_id: str
     case_id: str | None
@@ -40,9 +45,16 @@ class Document:
     review_date: date | None
     entity_ref: str | None
     identity_status: str | None = None  # intake "Identity document:" value, e.g. "attached"
+    filing_jurisdiction: str | None = None
+    declared_owner: str | None = None
+    filing_address: str | None = None
+    holder_name: str | None = None
+    birth_year: int | None = None
+    document_reference: str | None = None
+    identity_not_supplied: bool = False
 
 
-@dataclass(frozen=True)
+@dataclass(config=_FROZEN)
 class Chunk:
     source_id: str
     chunk_no: int
@@ -52,7 +64,7 @@ class Chunk:
     text: str
 
 
-@dataclass(frozen=True)
+@dataclass(config=_FROZEN)
 class ParsedFile:
     source: Source
     policy: Policy | None = None
@@ -61,11 +73,11 @@ class ParsedFile:
     warnings: tuple[str, ...] = ()
 
 
-@dataclass(frozen=True)
+@dataclass(config=_FROZEN)
 class ToolResult:
     tool: str
     ok: bool
-    payload: dict | None
+    payload: dict[str, Any] | None
     attempts: int
     error: str | None = None
     seconds: float = 0.0
@@ -76,39 +88,39 @@ class ToolResult:
         return self.payload.get("source_id") if self.payload else None
 
 
-@dataclass(frozen=True)
+@dataclass(config=_FROZEN)
 class CaseEvidence:
     case_id: str
     review_date: date | None
     entity_ref: str | None
     identity_status: str | None
     identity_document_present: bool
-    customer: dict | None
-    registry: dict | None
-    screening: dict | None
-    transactions: dict | None
+    customer: dict[str, Any] | None
+    registry: dict[str, Any] | None
+    screening: dict[str, Any] | None
+    transactions: dict[str, Any] | None
     failed_tools: tuple[str, ...] = ()
 
 
-@dataclass(frozen=True)
+@dataclass(config=_FROZEN)
 class Decision:
     classification: str
     routing: str
     policy_ids: list[str]
     policy: Policy | None
-    facts: dict
+    facts: dict[str, Any]
     missing_information: list[str]
     reasons: list[str]
     incomplete_reasons: list[str]
     address_check: str  # same | normalized_same | different | unknown
-    screening_matches: list[dict] = field(default_factory=list)
+    screening_matches: list[dict[str, Any]] = Field(default_factory=list)
     pep: bool | None = None
     monthly_total: int | float | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(config=_FROZEN)
 class CaseRun:
-    packet: dict
+    packet: dict[str, Any]
     decision: Decision
     tool_results: dict[str, ToolResult]
     seconds: float

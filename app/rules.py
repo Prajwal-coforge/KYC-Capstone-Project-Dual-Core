@@ -10,9 +10,9 @@ Missing-information fields are kept even when a higher rule wins.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Callable
 
 from .models import Policy
 

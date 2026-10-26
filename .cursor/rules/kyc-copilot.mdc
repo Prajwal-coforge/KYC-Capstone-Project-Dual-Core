@@ -11,9 +11,13 @@ Authority: ENG-01 → KYC-SCOPE-01 / dated policies → `docs/OUTPUT_CONTRACT.md
 
 `tools/`, `data/`, `feedback/`, `examples/`, `BRIEF.md`, `docs/API.md`, `docs/OUTPUT_CONTRACT.md`, `docs/POLICY_GUIDE.md`, `docs/ASSESSMENT.md`.
 
+## Dependencies
+
+Allowed: `pydantic` (contracts), `pytest` + `ruff` (dev). Ban `requests` / `httpx` unless a human expands the list. Prefer stdlib `urllib` / `sqlite3` for I/O.
+
 ## Layers
 
-- `contracts`: no I/O, no model
+- `contracts`: stdlib + pydantic; no I/O, no LLM
 - `domain`: contracts only — no network, files, clock, model
 - `ingestion`: contracts only — no network, model
 - `adapters`: contracts + observability — no domain rules

@@ -6,6 +6,7 @@ from datetime import date
 from app.ingest import ingest
 from app.rules import CaseEvidence, compare_addresses, decide, normalize_address
 from app.sqlite_store import SqliteKnowledgeStore
+
 from tests.helpers import DEV
 
 ADDRESS = "100 Orchard Walk, Alder"

@@ -12,11 +12,21 @@ These rules live on **`main`**. Team planning and task distribution live on bran
 4. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and every file under [`docs/adr/`](docs/adr/)
 5. Models under [`src/kyc_copilot/contracts/`](src/kyc_copilot/contracts/) (once present)
 
+## Dependencies (approved exception)
+
+Runtime / contracts may use **Pydantic v2**. Dev tooling may use **pytest** and **ruff**. Still prefer stdlib for I/O (`urllib`, `sqlite3`). Do **not** add `requests` or `httpx` unless a human explicitly expands this list.
+
+| Allowed | Role |
+|---|---|
+| `pydantic` | Frozen boundary models / schema validation in `contracts/` |
+| `pytest` | Test runner (unittest-style tests remain valid under pytest) |
+| `ruff` | Lint + format |
+
 ## Layer map
 
 | Folder | May use | Must not use |
 |---|---|---|
-| `contracts/` | nothing inside the app | network, files, model |
+| `contracts/` | stdlib + `pydantic` | network, files, LLM, other layers |
 | `domain/` | `contracts` | network, files, clock, model |
 | `ingestion/` | `contracts` | network, model |
 | `adapters/` | `contracts`, traces | domain rules |
@@ -106,3 +116,11 @@ Never stage `tools/`, `data/`, `feedback/`, `examples/`, or client docs listed a
 ## Tests
 
 Any behavior change ships with a test in the same commit. Prefer small commits: `feat(domain): …`, `test(architecture): …`.
+
+Run with either:
+
+- `PYTHONPATH=src:. python -m pytest`
+- `PYTHONPATH=src:. python -m unittest`
+- Docker: `docker compose exec -e PYTHONPATH=/app/src:/app dev uv run --locked python -m pytest`
+
+Lint: `uv run --locked ruff check src tests app` and `uv run --locked ruff format --check src tests app`.

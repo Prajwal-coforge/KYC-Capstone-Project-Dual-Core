@@ -2,18 +2,20 @@
 
 Reference for the ENG-01 migration that moves the KYC Review Copilot from `app/` into the 7-layer package `src/kyc_copilot/` (`python -m kyc_copilot`), then retires `app/` at the end of Phase 4.
 
-Agent rule companion: [`.cursor/rules/tdd-oop-workflow.mdc`](../.cursor/rules/tdd-oop-workflow.mdc).  
+Agent rule companion: [`.cursor/rules/tdd-oop-workflow.mdc`](../.cursor/rules/tdd-oop-workflow.mdc).
 Authorities: ENG-01 → KYC-SCOPE-01 / dated policies → [`OUTPUT_CONTRACT.md`](OUTPUT_CONTRACT.md) → [`AGENTS.md`](../AGENTS.md) → ADRs → [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## Environment
 
 | Constraint | Rule |
 |---|---|
-| Dependencies | `pyproject.toml` `dependencies = []` — Python 3.12 **stdlib only** |
-| Models / I/O | `@dataclass(frozen=True)`, `abc.ABC`, `typing.Protocol`, `urllib.request`, `sqlite3`, `unittest` |
-| Never import | `pydantic`, `pytest`, `requests`, `httpx`, or any third-party library |
-| Test command | `PYTHONPATH=src:. python3 -m unittest` |
-| Docker tests | `docker compose exec -e PYTHONPATH=/app/src:/app dev uv run --locked python -m unittest` |
+| Runtime deps | `pydantic` (boundary models / validation). Prefer stdlib `urllib` + `sqlite3` for I/O. |
+| Dev deps | `pytest`, `ruff` |
+| Still banned | `requests`, `httpx` (unless a human expands the allow-list) |
+| Models | Pydantic v2 `@dataclass(config=ConfigDict(frozen=True))` with validation; ports via `Protocol` / `ABC` |
+| Test command | `PYTHONPATH=src:. python -m pytest` (or `python -m unittest`) |
+| Lint | `uv run --locked ruff check src tests app` |
+| Docker tests | `docker compose exec -e PYTHONPATH=/app/src:/app dev uv run --locked python -m pytest` |
 | Git | Human commits; agent never commits/pushes/amends/merges unless asked. **Open a PR before every major coding release.** |
 
 Client-owned paths are never edited: `tools/`, `data/`, `feedback/`, `examples/`, `BRIEF.md`, `docs/API.md`, `docs/OUTPUT_CONTRACT.md`, `docs/POLICY_GUIDE.md`, `docs/ASSESSMENT.md`.
@@ -45,15 +47,15 @@ src/kyc_copilot/
 
 ### Import boundaries
 
-| Package | May import | Must not |
-|---|---|---|
-| `contracts` | stdlib only | network, files, model, other layers |
-| `ingestion` | `contracts` | network (`urllib`), model |
-| `domain` | `contracts` | I/O, SQLite, HTTP, clock, model |
-| `narrative` | `contracts` | raw documents, mock server |
-| `observability` | `contracts` | domain rules, network |
-| `adapters` | `contracts`, `observability` | domain rules |
-| `runner` | all layers | — |
+| Package           | May import                       | Must not                            |
+| ----------------- | -------------------------------- | ----------------------------------- |
+| `contracts`     | stdlib + `pydantic`            | network, files, LLM, other layers   |
+| `ingestion`     | `contracts`                    | network (`urllib`), model         |
+| `domain`        | `contracts`                    | I/O, SQLite, HTTP, clock, model     |
+| `narrative`     | `contracts`                    | raw documents, mock server          |
+| `observability` | `contracts`                    | domain rules, network               |
+| `adapters`      | `contracts`, `observability` | domain rules                        |
+| `runner`        | all layers                       | —                                  |
 
 AST enforcement lives in `tests/architecture/test_boundaries.py` (added from Cycle 1.1 onward; tightened through Phase 4).
 
@@ -68,16 +70,16 @@ Defined in `kyc_copilot.contracts.interfaces`:
 
 Domain rule classes (Phase 3) include, among others:
 
-| Class | Precedence (plan) |
-|---|---|
-| `ToolAvailabilityRule` | 10 |
-| `CrossSourceConflictRule` | 11 |
-| `ScopeAndPolicyRule` | 12 |
-| `OwnershipDepthRule` | 14 |
-| `ScreeningMatchRule` | 16 |
-| `IdentityDocumentRule` | 20 |
-| `AddressComparisonRule` | 22 |
-| `EddAndPepRule` | 30 |
+| Class                       | Precedence (plan) |
+| --------------------------- | ----------------- |
+| `ToolAvailabilityRule`    | 10                |
+| `CrossSourceConflictRule` | 11                |
+| `ScopeAndPolicyRule`      | 12                |
+| `OwnershipDepthRule`      | 14                |
+| `ScreeningMatchRule`      | 16                |
+| `IdentityDocumentRule`    | 20                |
+| `AddressComparisonRule`   | 22                |
+| `EddAndPepRule`           | 30                |
 
 Routing still follows [`ARCHITECTURE.md`](ARCHITECTURE.md) scope precedence. `missing_information` fields may remain on escalated packets.
 
@@ -116,42 +118,64 @@ Missing file, intake status ≠ `attached`, body saying not supplied/included, o
 
 Include a `DRAFT` customer request message **only** when `routing == "request_information"`.
 
-## Four phases (cycle map)
+## Four phases (cycle map & PR checkpoints)
+
+Per `AGENTS.md` ("One primary layer per branch/PR when possible. Contract changes get their own PR" and 50–50 cross-review), open a Pull Request into `main` at the end of each phase (or split Phase 1 into 1A `contracts` and 1B `ingestion` if you want a dedicated contracts PR).
 
 ### Phase 0 — Guardrails (this doc + agent rule)
 
 Create `.cursor/rules/tdd-oop-workflow.mdc` and this strategy doc. No application code.
 
+- **PR #0 (`docs/tdd-oop-strategy` → `main`)**:
+  - **When to open PR**: Immediately after `.cursor/rules/tdd-oop-workflow.mdc` and `docs/TDD_AND_OOP_STRATEGY.md` are committed, before touching `src/kyc_copilot/`.
+  - **PR Gate**: Confirm zero client-owned files staged (`git status -sb`).
+
 ### Phase 1 — `contracts/` + `ingestion/`
 
-| Cycle | Focus |
-|---|---|
-| 1.1 | Wire `src/` on `PYTHONPATH`; freeze `contracts/models.py` + `contracts/interfaces.py`; architecture boundary tests |
-| 1.2 | `ingestion/parsing.py` — corporate & identity fields; suffix checks |
-| 1.3 | `ingestion/ingest.py` — PolicyManifestGuard; no `urllib` in ingestion |
+| Cycle | Focus                                                                                                                      | Commit scope                                                                |
+| ----- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| 1.1   | Wire `src/` on `PYTHONPATH`; freeze `contracts/models.py` + `contracts/interfaces.py`; architecture boundary tests | `feat(contracts): add frozen boundary models and StatutoryRule ABC`       |
+| 1.2   | `ingestion/parsing.py` — corporate & identity fields; suffix checks                                                     | `feat(ingestion): parse corporate and identity fields with suffix checks` |
+| 1.3   | `ingestion/ingest.py` — PolicyManifestGuard; no `urllib` in ingestion                                                 | `feat(ingestion): enforce policy_manifest.json and remove network calls`  |
+
+- **PR #1A (optional dedicated contracts PR after Cycle 1.1) or PR #1 (`feat/vidhi/phase1-contracts-ingestion` → `main` after Cycle 1.3)**:
+  - **When to open PR**: After Cycle 1.3 is GREEN and `PYTHONPATH=src:. python3 -m unittest` passes all unit + architecture boundary tests for `contracts` and `ingestion`.
+  - **Reviewer**: Prajwal reviews; Vidhi merges to `main`.
 
 ### Phase 2 — `observability/` + `adapters/`
 
-| Cycle | Focus |
-|---|---|
-| 2.1 | `observability/tracing.py` — depends only on contracts |
-| 2.2 | `adapters/` — redaction, sqlite_store (`SCHEMA_VERSION = 3`), tools_client |
+| Cycle | Focus                                                                           | Commit scope                                                          |
+| ----- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| 2.1   | `observability/tracing.py` — depends only on contracts                       | `feat(observability): migrate tracing to depend only on contracts`  |
+| 2.2   | `adapters/` — redaction, sqlite_store (`SCHEMA_VERSION = 3`), tools_client | `feat(adapters): migrate sqlite_store, tools_client, and redaction` |
+
+- **PR #2 (`feat/vidhi/phase2-observability-adapters` → `main`)**:
+  - **When to open PR**: After Cycle 2.2 is GREEN and `tests/test_tracing.py`, `tests/test_tools_client.py`, `tests/test_ingest.py`, and `tests/architecture/test_boundaries.py` all pass.
+  - **Reviewer**: Prajwal reviews; Vidhi merges to `main`.
 
 ### Phase 3 — `domain/` polymorphic rules
 
-| Cycle | Focus |
-|---|---|
-| 3.1 | Reflective `StatutoryRule` registry; migrate existing rule behavior |
-| 3.2 | `CrossSourceConflictRule` |
-| 3.3 | 3-way `AddressComparisonRule` + identity holder checks |
+| Cycle | Focus                                                                 | Commit scope                                                              |
+| ----- | --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 3.1   | Reflective `StatutoryRule` registry; migrate existing rule behavior | `feat(domain): refactor rules into reflective StatutoryRule registry`   |
+| 3.2   | `CrossSourceConflictRule`                                           | `feat(domain): add CrossSourceConflictRule for non-address mismatches`  |
+| 3.3   | 3-way `AddressComparisonRule` + identity holder checks              | `feat(domain): add 3-way address comparison and identity holder checks` |
+
+- **PR #3 (`feat/vidhi/phase3-domain-rules` → `main`)**:
+  - **When to open PR**: After Cycle 3.3 is GREEN, all 38+ tests in `tests/test_rules.py` pass, and `tests/architecture/test_boundaries.py` confirms `kyc_copilot.domain` imports only `kyc_copilot.contracts`.
+  - **Reviewer**: Prajwal reviews; Vidhi merges to `main`.
 
 ### Phase 4 — `narrative/` + `runner/`, retire `app/`
 
-| Cycle | Focus |
-|---|---|
-| 4.1 | `domain/packet.py` — discrepancy citations for corporate/identity |
-| 4.2 | `narrative/narrator.py` — DRAFT request gate |
-| 4.3 | `runner/` + `__main__.py`; switch tests to `kyc_copilot.*`; delete `app/`; AST lock |
+| Cycle | Focus                                                                                       | Commit scope                                                                       |
+| ----- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 4.1   | `domain/packet.py` — discrepancy citations for corporate/identity                        | `feat(domain): add side-by-side citations for 3-way address and field conflicts` |
+| 4.2   | `narrative/narrator.py` — DRAFT request gate                                             | `feat(narrative): gate DRAFT customer request on request_information route`      |
+| 4.3   | `runner/` + `__main__.py`; switch tests to `kyc_copilot.*`; delete `app/`; AST lock | `feat(runner): cut over CLI to kyc_copilot and retire legacy app package`        |
+
+- **PR #4 (`feat/vidhi/phase4-runner-retire-app` → `main`)**:
+  - **When to open PR**: After Cycle 4.3 is GREEN, `app/` is deleted, `PYTHONPATH=src:. python3 -m unittest` passes 100%, and `tools/evaluate.py` passes **12/12** dev cases via `python -m kyc_copilot`.
+  - **Reviewer**: Prajwal reviews; Vidhi merges to `main`.
 
 ## Conventional commits
 

@@ -1,4 +1,4 @@
-"""Architecture guards for src/kyc_copilot layer boundaries (stdlib + unittest only)."""
+"""Architecture guards for src/kyc_copilot layer boundaries."""
 from __future__ import annotations
 
 import ast
@@ -9,8 +9,11 @@ import unittest
 from dataclasses import fields, is_dataclass
 from pathlib import Path
 
+from pydantic.dataclasses import is_pydantic_dataclass
+
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
+ALLOWED_CONTRACT_THIRD_PARTY = frozenset({"pydantic"})
 
 
 def _ensure_src_on_path() -> None:
@@ -37,7 +40,9 @@ INTERFACE_NAMES = ("KnowledgeStore", "Narrator", "StatutoryRule")
 def _module_file(module) -> Path:
     path = getattr(module, "__file__", None)
     if path is None:
-        raise AssertionError(f"{module.__name__} has no __file__ (expected a real module under src/)")
+        raise AssertionError(
+            f"{module.__name__} has no __file__ (expected a real module under src/)"
+        )
     return Path(path).resolve()
 
 
@@ -55,15 +60,31 @@ def _imported_module_names(py_file: Path) -> set[str]:
     return names
 
 
-def _is_stdlib_or_relative(top_level: str) -> bool:
+def _is_allowed_contracts_import(top_level: str) -> bool:
     if top_level in sys.stdlib_module_names:
         return True
-    if top_level == "kyc_copilot":
-        return False
+    return top_level in ALLOWED_CONTRACT_THIRD_PARTY
+
+
+def _is_frozen(cls: type) -> bool:
+    params = getattr(cls, "__dataclass_params__", None)
+    if params is not None and getattr(params, "frozen", False):
+        return True
+    config = getattr(cls, "__pydantic_config__", None)
+    if config is not None:
+        return bool(config.get("frozen"))
     return False
 
 
 class TestContractsBoundaries(unittest.TestCase):
+    def test_pydantic_rejects_invalid_document_review_date(self) -> None:
+        from pydantic import ValidationError
+
+        from kyc_copilot.contracts.models import Document
+
+        with self.assertRaises(ValidationError):
+            Document("KYC-X-INTAKE", "KYC-X", "intake", True, "not-a-date", None)
+
     def test_contracts_exposes_frozen_models_and_interfaces(self) -> None:
         models = importlib.import_module("kyc_copilot.contracts.models")
         interfaces = importlib.import_module("kyc_copilot.contracts.interfaces")
@@ -73,8 +94,11 @@ class TestContractsBoundaries(unittest.TestCase):
                 cls = getattr(models, name, None) or getattr(interfaces, name, None)
                 self.assertIsNotNone(cls, f"missing frozen model {name}")
                 self.assertTrue(is_dataclass(cls), f"{name} must be a dataclass")
-                self.assertTrue(cls.__dataclass_params__.frozen, f"{name} must be frozen")
-                # Touch fields so incomplete stubs fail loudly
+                self.assertTrue(
+                    is_pydantic_dataclass(cls),
+                    f"{name} must be a Pydantic dataclass (schema validation)",
+                )
+                self.assertTrue(_is_frozen(cls), f"{name} must be frozen")
                 self.assertGreaterEqual(len(fields(cls)), 1, f"{name} must declare fields")
 
         for name in INTERFACE_NAMES:
@@ -89,7 +113,7 @@ class TestContractsBoundaries(unittest.TestCase):
         self.assertTrue(hasattr(rule, "ordered_rules"))
         self.assertTrue(callable(rule.ordered_rules))
 
-    def test_contracts_modules_import_stdlib_only(self) -> None:
+    def test_contracts_modules_import_stdlib_or_pydantic_only(self) -> None:
         models = importlib.import_module("kyc_copilot.contracts.models")
         interfaces = importlib.import_module("kyc_copilot.contracts.interfaces")
         for module in (models, interfaces):
@@ -100,12 +124,12 @@ class TestContractsBoundaries(unittest.TestCase):
                     f"{module.__name__} must live under src/",
                 )
                 for top in _imported_module_names(path):
+                    if top == "kyc_copilot":
+                        self.fail(f"{module.__name__} must not import other kyc_copilot layers")
                     self.assertTrue(
-                        _is_stdlib_or_relative(top),
-                        f"{module.__name__} imports non-stdlib top-level {top!r}",
+                        _is_allowed_contracts_import(top),
+                        f"{module.__name__} imports disallowed top-level {top!r}",
                     )
-                    self.assertNotEqual(top, "kyc_copilot",
-                                        f"{module.__name__} must not import other kyc_copilot layers")
 
 
 if __name__ == "__main__":
