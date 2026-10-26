@@ -1,4 +1,5 @@
 """Frozen boundary models shared across layers. Stdlib + Pydantic; no I/O."""
+
 from __future__ import annotations
 
 from datetime import date
@@ -100,6 +101,12 @@ class CaseEvidence:
     screening: dict[str, Any] | None
     transactions: dict[str, Any] | None
     failed_tools: tuple[str, ...] = ()
+    filing_jurisdiction: str | None = None
+    declared_owner: str | None = None
+    filing_address: str | None = None
+    holder_name: str | None = None
+    birth_year: int | None = None
+    identity_not_supplied: bool = False
 
 
 @dataclass(config=_FROZEN)

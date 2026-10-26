@@ -1,10 +1,11 @@
 """Build the output-contract packet. Citations are exact quotes before they are kept."""
+
 from __future__ import annotations
 
 from .models import KnowledgeStore
 from .narrator import Narrator
 from .redaction import json_fragment
-from .rules import SCOPE_ID, CaseEvidence, Decision
+from .rules import SCOPE_ID, CaseEvidence, Decision, compare_addresses
 
 # Short exact phrases from KYC-SCOPE-01 that justify each reason. Phrases that are not
 # found in the supplied text are dropped, never invented.
@@ -23,8 +24,7 @@ SCOPE_PHRASES = {
     ),
     "identity_document_missing": "Missing identity document is identity_document.",
     "address_mismatch": (
-        "An address discrepancy requires address_explanation; "
-        "never silently choose a source."
+        "An address discrepancy requires address_explanation; never silently choose a source."
     ),
     "no_applicable_policy": "Review date determines the applicable policy version.",
     "multiple_policies": "Review date determines the applicable policy version.",
@@ -58,6 +58,20 @@ def _follow_up(field: str, decision: Decision, evidence: CaseEvidence) -> str:
     if field == "address_explanation":
         c = evidence.customer.get("registered_address") if evidence.customer else None
         r = evidence.registry.get("registered_address") if evidence.registry else None
+        f = evidence.filing_address
+        filing = f if isinstance(f, str) and f.strip() else None
+        if compare_addresses(c, r) in ("same", "normalized_same") and filing is not None:
+            return (
+                f"Our customer and registry records list '{c}' but the corporate filing "
+                f"lists '{filing}'. Please confirm which address is current and provide "
+                "supporting evidence."
+            )
+        if filing is not None:
+            return (
+                f"Our records list the registered address as '{c}' while the registry "
+                f"lists '{r}' and the corporate filing lists '{filing}'. "
+                "Please confirm which address is current and provide supporting evidence."
+            )
         return (
             f"Our records list the registered address as '{c}' while the registry lists '{r}'. "
             "Please confirm which address is current and provide supporting evidence."
@@ -152,12 +166,27 @@ def build_citations(
                 )
         for name in d.facts.get("owner_names") or []:
             candidates.append(("Registry owner", sid, json_fragment("name", name)))
+
+    if "address_explanation" in d.missing_information or d.address_check == "different":
+        for source in store.case_documents(ev.case_id):
+            doc = store.get_document(source.source_id)
+            if doc is None or doc.doc_type != "corporate":
+                continue
+            corp = store.get_source(source.source_id)
+            if corp is None:
+                continue
+            candidates.append(
+                (
+                    "Corporate filing registered address",
+                    source.source_id,
+                    _line(corp.content, "Registered address in supplied filing:"),
+                )
+            )
+            break
     if ev.screening:
         sid = ev.screening["source_id"]
         if not d.screening_matches and ev.screening.get("matches") == []:
-            candidates.append(
-                ("No screening matches returned", sid, json_fragment("matches", []))
-            )
+            candidates.append(("No screening matches returned", sid, json_fragment("matches", [])))
         for m in d.screening_matches:
             for key in ("candidate_name", "match_type"):
                 if key in m:
