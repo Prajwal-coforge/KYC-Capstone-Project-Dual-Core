@@ -2,6 +2,8 @@
 .venv/
 .state/
 __pycache__/
+# Retired package. Application code is src/kyc_copilot.
+app/
 *.pyc
 *.sqlite
 *.sqlite-wal
