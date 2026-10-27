@@ -48,6 +48,7 @@ from kyc_copilot.ingestion.ingest import (
 from kyc_copilot.ingestion.parsing import parse_file
 from kyc_copilot.narrative.narrator import TemplateNarrator
 from kyc_copilot.observability.tracing import metrics
+from kyc_copilot.runner import ingest as ingest_runner
 from kyc_copilot.runner.cli import load_review_ledger, main, submit_drafts
 from kyc_copilot.runner.ingest import _repo_root
 from kyc_copilot.runner.ingest import main as ingest_main
@@ -477,9 +478,10 @@ class CliEdges(unittest.TestCase):
             self.assertEqual(caught.exception.code, 0)
 
     def test_repo_root_falls_back_when_the_markers_are_absent(self):
+        here = Path(ingest_runner.__file__).resolve()
         with patch("kyc_copilot.runner.ingest.Path.is_dir", return_value=False):
             root = _repo_root()
-        self.assertEqual(root.name, "kyc-participant")
+        self.assertEqual(root, here.parents[3])
 
     def test_a_tool_that_claims_a_policy_id_is_dropped(self):
         class Row:
