@@ -2,6 +2,7 @@
 .venv/
 .state/
 __pycache__/
+app/
 *.pyc
 *.sqlite
 *.sqlite-wal
