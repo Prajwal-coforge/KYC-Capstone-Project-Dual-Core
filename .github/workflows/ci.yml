@@ -30,10 +30,11 @@ jobs:
       - name: Install the locked environment
         run: uv sync --locked
 
+      # Code on main lives in src/kyc_copilot. The retired app/ package is not in git.
       - name: Ruff
         run: |
-          uv run --locked ruff check src tests
-          uv run --locked ruff format --check src tests
+          uv run --locked ruff check src/kyc_copilot tests
+          uv run --locked ruff format --check src/kyc_copilot tests
 
       # Full tree: architecture boundaries, ingest, rules, tools client,
       # tracing and SLO metrics, narrative, packet citations, and the
@@ -52,6 +53,6 @@ jobs:
 
       - name: Ruff and pytest inside the image
         run: |
-          docker run --rm kyc-capstone:ci uv run --locked ruff check src tests
-          docker run --rm kyc-capstone:ci uv run --locked ruff format --check src tests
+          docker run --rm kyc-capstone:ci uv run --locked ruff check src/kyc_copilot tests
+          docker run --rm kyc-capstone:ci uv run --locked ruff format --check src/kyc_copilot tests
           docker run --rm kyc-capstone:ci uv run --locked python -m pytest tests
