@@ -286,10 +286,20 @@ class TestDomainBoundaries(unittest.TestCase):
                         allowed or same_layer,
                         f"{path.name} imports {mod} outside contracts/domain",
                     )
+                    self.assertFalse(
+                        mod.startswith("kyc_copilot.adapters"),
+                        f"{path.name} must not import adapters ({mod})",
+                    )
+                for top in _imported_module_names(path):
+                    self.assertNotIn(
+                        top,
+                        {"psycopg", "sqlite3"},
+                        f"{path.name} must not import {top}",
+                    )
 
 
 class TestAdaptersBoundaries(unittest.TestCase):
-    """Cycle 2.2: adapters may import contracts + observability only."""
+    """Adapters may import contracts, observability, sibling adapters, and psycopg."""
 
     def test_adapter_modules_exist_with_expected_exports(self) -> None:
         redaction = importlib.import_module("kyc_copilot.adapters.redaction")
@@ -303,6 +313,8 @@ class TestAdaptersBoundaries(unittest.TestCase):
         self.assertTrue(hasattr(store, "SqliteKnowledgeStore"))
         self.assertTrue(hasattr(tools, "ToolClient"))
         self.assertTrue(hasattr(tools, "MAX_ATTEMPTS"))
+        factory = importlib.import_module("kyc_copilot.adapters.store_factory")
+        self.assertTrue(hasattr(factory, "open_knowledge_store"))
 
     def test_adapters_import_only_contracts_and_observability(self) -> None:
         adapters_dir = SRC / "kyc_copilot" / "adapters"
@@ -311,11 +323,13 @@ class TestAdaptersBoundaries(unittest.TestCase):
         allowed_prefixes = (
             "kyc_copilot.contracts",
             "kyc_copilot.observability",
+            "kyc_copilot.adapters",
         )
+        allowed_third_party = ALLOWED_CONTRACT_THIRD_PARTY | {"psycopg"}
         for path in files:
             with self.subTest(file=path.name):
                 for top in _imported_module_names(path):
-                    if top in sys.stdlib_module_names or top in ALLOWED_CONTRACT_THIRD_PARTY:
+                    if top in sys.stdlib_module_names or top in allowed_third_party:
                         continue
                     if top == "kyc_copilot":
                         continue
