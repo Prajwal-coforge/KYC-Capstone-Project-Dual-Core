@@ -103,6 +103,20 @@ class TraceTests(unittest.TestCase):
         self.assertFalse(metrics(older + recent)["alert"])
         self.assertEqual(metrics(older + recent)["cases"], 20)
 
+    def test_empty_window_does_not_alert(self):
+        summary = metrics([])
+        self.assertEqual(summary["cases"], 0)
+        self.assertEqual(summary["success_rate"], 1.0)
+        self.assertIsNone(summary["p95_ms"])
+        self.assertFalse(summary["alert"])
+
+    def test_single_packet_over_15_seconds_alerts(self):
+        summary = metrics([{"event": "decision", "latency_ms": 16_000.0}])
+        self.assertTrue(summary["alert"])
+        self.assertGreater(summary["p95_ms"], 15_000)
+        self.assertLess(summary["success_rate"], 0.95)
+        self.assertIn("p95_above_15s", summary["alert_reason"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -147,8 +147,15 @@ class ToolClient:
         )
 
     def list_cases(self) -> list[dict]:
-        return self._request("GET", "/v1/cases")["cases"]
+        body = self._request("GET", "/v1/cases")
+        cases = body.get("cases") if isinstance(body, dict) else None
+        if not isinstance(cases, list) or not all(isinstance(item, dict) for item in cases):
+            raise _Final("invalid_response")
+        return cases
 
     def submit_review(self, case_id: str, draft: dict) -> dict:
         """Ask a human to review the draft. Returns review_id, pending status and draft hash."""
-        return self._request("POST", "/v1/reviews", {"case_id": case_id, "draft": draft})
+        body = self._request("POST", "/v1/reviews", {"case_id": case_id, "draft": draft})
+        if not isinstance(body, dict):
+            raise _Final("invalid_response")
+        return body
