@@ -255,6 +255,7 @@ class TestDomainBoundaries(unittest.TestCase):
                 "tool_availability",
                 "cross_source_conflict",
                 "scope_and_policy",
+                "document_faults",
                 "ownership_depth",
                 "screening_match",
                 "identity_document",
@@ -309,7 +310,7 @@ class TestAdaptersBoundaries(unittest.TestCase):
         self.assertTrue(hasattr(redaction, "redact"))
         self.assertTrue(hasattr(redaction, "canonical_json"))
         self.assertTrue(hasattr(redaction, "json_fragment"))
-        self.assertEqual(store.SCHEMA_VERSION, 3)
+        self.assertEqual(store.SCHEMA_VERSION, 4)
         self.assertTrue(hasattr(store, "SqliteKnowledgeStore"))
         self.assertTrue(hasattr(tools, "ToolClient"))
         self.assertTrue(hasattr(tools, "MAX_ATTEMPTS"))

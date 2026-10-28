@@ -120,6 +120,8 @@ class _Scratch:
     entity_id: str | None = None
     jurisdiction_disputed: bool = False
     entity_ref_disputed: bool = False
+    registry_inactive: bool = False
+    owners_unusable: bool = False
 
 
 _ACTIVE: ContextVar[_Scratch | None] = ContextVar("kyc_rule_scratch", default=None)
@@ -138,14 +140,25 @@ def _number(value: object) -> int | float | None:
     return value if isinstance(value, (int, float)) and not isinstance(value, bool) else None
 
 
+def _registry_active(registry: dict[str, Any] | None) -> bool:
+    """A registry body is usable only when it says registry_status is active."""
+    return isinstance(registry, dict) and registry.get("registry_status") == "active"
+
+
 def _owner_names(registry: dict[str, Any] | None) -> list[str] | None:
-    """Owner names from registry; None when the tool response is missing (not an empty list)."""
-    if registry is None:
-        return None  # KYC-SCOPE-01: missing registry response means null, not an empty list
+    """Usable owner names, or None when the registry or the owner list cannot be used."""
+    if not _registry_active(registry):
+        return None
+    assert registry is not None
     owners = registry.get("owners")
     if not isinstance(owners, list):
         return None
-    return [o["name"] for o in owners if isinstance(o, dict) and isinstance(o.get("name"), str)]
+    names = [
+        o["name"]
+        for o in owners
+        if isinstance(o, dict) and isinstance(o.get("name"), str) and o["name"].strip()
+    ]
+    return names or None
 
 
 def _present_text(value: object) -> str | None:
@@ -206,9 +219,20 @@ class CrossSourceConflictRule(StatutoryRule):
                 scratch.entity_ref_disputed = True
                 scratch.entity_id = None
 
-        owners = _owner_names(registry)
-        if owners is not None:
-            if _present_text(evidence.holder_name) and evidence.holder_name not in owners:
+        cust_company = _present_text(customer.get("company_name")) if customer else None
+        filing_company = _present_text(evidence.company_name)
+        if cust_company and filing_company and cust_company != filing_company:
+            scratch.escalate.append("company_name_conflict")
+
+        if registry is not None and not _registry_active(registry):
+            scratch.registry_inactive = True
+            scratch.escalate.append("registry_not_active")
+        elif registry is not None:
+            owners = _owner_names(registry)
+            if owners is None:
+                scratch.owners_unusable = True
+                scratch.escalate.append("owners_not_established")
+            elif _present_text(evidence.holder_name) and evidence.holder_name not in owners:
                 scratch.escalate.append("owner_name_conflict")
             elif _present_text(evidence.declared_owner) and evidence.declared_owner not in owners:
                 scratch.escalate.append("owner_name_conflict")
@@ -239,6 +263,9 @@ class ScopeAndPolicyRule(StatutoryRule):
         jurisdiction = scratch.jurisdiction
         if scratch.jurisdiction_disputed:
             return
+        if customer is not None and not scratch.jurisdiction_disputed:
+            if _present_text(entity_type) is None or _present_text(jurisdiction) is None:
+                scratch.escalate.append("customer_fields_missing")
         if entity_type and jurisdiction and (entity_type, jurisdiction) not in SUPPORTED:
             scratch.classification = "unsupported"
             scratch.escalate.append("unsupported_scope")
@@ -256,6 +283,16 @@ class ScopeAndPolicyRule(StatutoryRule):
                     )
 
 
+class DocumentFaultRule(StatutoryRule):
+    rule_id: ClassVar[str] = "document_faults"
+    precedence: ClassVar[int] = 13
+
+    def apply(self, evidence: CaseEvidence) -> None:
+        """Escalate missing, duplicate, empty, unreadable, or self-contradictory documents."""
+        scratch = _scratch()
+        scratch.escalate.extend(evidence.document_faults)
+
+
 class OwnershipDepthRule(StatutoryRule):
     rule_id: ClassVar[str] = "ownership_depth"
     precedence: ClassVar[int] = 14
@@ -264,7 +301,7 @@ class OwnershipDepthRule(StatutoryRule):
         """Escalate when ownership depth is unknown or deeper than one layer."""
         scratch = _scratch()
         registry = evidence.registry
-        if registry is None:
+        if registry is None or _scratch().registry_inactive:
             return
         depth = _number(registry.get("ownership_depth"))
         if depth is None:
@@ -304,15 +341,18 @@ class IdentityDocumentRule(StatutoryRule):
     precedence: ClassVar[int] = 20
 
     def apply(self, evidence: CaseEvidence) -> None:
-        """Request identity when missing, not attached, not supplied, or no holder name."""
+        """Request identity unless name, birth year, and document reference are all supplied."""
         scratch = _scratch()
         status = (evidence.identity_status or "").strip().casefold()
-        missing_holder = evidence.holder_name is None or not str(evidence.holder_name).strip()
+        missing_holder = _present_text(evidence.holder_name) is None
+        missing_reference = _present_text(evidence.document_reference) is None
         if (
             status != "attached"
             or not evidence.identity_document_present
             or evidence.identity_not_supplied
             or missing_holder
+            or evidence.birth_year is None
+            or missing_reference
         ):
             scratch.missing.append("identity_document")
             scratch.request.append("identity_document_missing")
@@ -323,35 +363,31 @@ class AddressComparisonRule(StatutoryRule):
     precedence: ClassVar[int] = 22
 
     def apply(self, evidence: CaseEvidence) -> None:
-        """Request address_explanation when present customer/registry/filing addresses disagree."""
+        """Request address_explanation only when all three addresses are present and differ."""
         scratch = _scratch()
         customer = evidence.customer
         registry = evidence.registry
-        if customer is None or registry is None:
+        if customer is None or not _registry_active(registry) or scratch.registry_inactive:
             scratch.address_check = "unknown"
             return
 
-        addresses: list[str] = []
-        for value in (
-            customer.get("registered_address"),
-            registry.get("registered_address"),
-            evidence.filing_address,
-        ):
-            present = _present_text(value)
-            if present is not None:
-                addresses.append(present)
-
-        if len(addresses) < 2:
+        addresses = [
+            _present_text(customer.get("registered_address")),
+            _present_text(registry.get("registered_address")),
+            _present_text(evidence.filing_address),
+        ]
+        if any(value is None for value in addresses):
             scratch.address_check = "unknown"
-        else:
-            pairwise = [
-                compare_addresses(addresses[i], addresses[j])
-                for i in range(len(addresses))
-                for j in range(i + 1, len(addresses))
-            ]
-            scratch.address_check = _combine_address_checks(pairwise)
+            return
 
-        if scratch.address_check in ("different", "unknown"):
+        present = [value for value in addresses if value is not None]
+        pairwise = [
+            compare_addresses(present[i], present[j])
+            for i in range(len(present))
+            for j in range(i + 1, len(present))
+        ]
+        scratch.address_check = _combine_address_checks(pairwise)
+        if scratch.address_check == "different":
             scratch.missing.append("address_explanation")
             scratch.request.append("address_mismatch")
 
@@ -368,6 +404,8 @@ class EddAndPepRule(StatutoryRule):
         transactions = evidence.transactions
         if transactions is None:
             return
+        if transactions.get("currency") != "XCR":
+            scratch.escalate.append("currency_mismatch")
         monthly_total = _number(transactions.get("monthly_total"))
         scratch.monthly_total = monthly_total
         if monthly_total is None:
@@ -400,7 +438,11 @@ def decide(ev: CaseEvidence, find_policies: Callable[[str, str, date], list[Poli
         "entity_type": scratch.entity_type,
         "jurisdiction": scratch.jurisdiction,
         "review_date": ev.review_date.isoformat() if ev.review_date else None,
-        "owner_names": _owner_names(ev.registry),
+        "owner_names": (
+            None
+            if ev.registry is None or scratch.registry_inactive or scratch.owners_unusable
+            else _owner_names(ev.registry)
+        ),
     }
     return Decision(
         scratch.classification,
@@ -432,6 +474,7 @@ __all__ = [
     "CrossSourceConflictRule",
     "ScopeAndPolicyRule",
     "OwnershipDepthRule",
+    "DocumentFaultRule",
     "ScreeningMatchRule",
     "IdentityDocumentRule",
     "AddressComparisonRule",

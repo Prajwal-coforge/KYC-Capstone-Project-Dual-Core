@@ -114,6 +114,7 @@ class DraftCustomerRequestGateTests(unittest.TestCase):
         note = self.narrator.write(_decision(), _evidence())
         self.assertNotIn("DRAFT customer request:", note)
         self.assertIn("complete_review", note)
+        self.assertIn("pep_indicator false", note)
 
     def test_enhanced_due_diligence_has_no_draft_customer_request(self):
         note = self.narrator.write(

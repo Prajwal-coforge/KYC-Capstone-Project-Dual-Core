@@ -55,18 +55,48 @@ def load_review_ledger(path: Path) -> dict:
     return data
 
 
-def _prior_review(ledger: dict, case_id: str, digest: str) -> dict | None:
-    by_case = ledger.get(case_id)
-    if by_case is None:
+def _business_key(packet: dict) -> str | None:
+    """Entity plus review date. A blank entity or date never matches a previous draft."""
+    facts = packet.get("facts")
+    if not isinstance(facts, dict):
         return None
-    if not isinstance(by_case, dict):
-        raise ValueError(f"Review ledger entry for {case_id} is unreadable")
-    hit = by_case.get(digest)
+    entity = facts.get("entity_id")
+    day = facts.get("review_date")
+    if not isinstance(entity, str) or not entity.strip():
+        return None
+    if not isinstance(day, str) or not day.strip():
+        return None
+    return f"{entity}|{day}"
+
+
+def _prior_review(ledger: dict, key: str, digest: str) -> dict | None:
+    by_key = ledger.get(key)
+    if by_key is None:
+        return None
+    if not isinstance(by_key, dict):
+        raise ValueError(f"Review ledger entry for {key} is unreadable")
+    hit = by_key.get(digest)
     if hit is None:
         return None
     if not isinstance(hit, dict) or hit.get("draft_hash") != digest or not hit.get("review_id"):
-        raise ValueError(f"Review ledger entry for {case_id} is unreadable")
+        raise ValueError(f"Review ledger entry for {key} is unreadable")
     return hit
+
+
+def _remember_submit(client: ToolClient, case_id: str) -> None:
+    """Copy the client's last submit attempt log into review_submit_events."""
+    events = getattr(client, "review_submit_events", None)
+    if events is None:
+        return
+    for attempt, status in getattr(client, "submit_attempt_log", ()):
+        events.append(
+            {
+                "event": "review_submit",
+                "case_id": case_id,
+                "attempt": attempt,
+                "status": status,
+            }
+        )
 
 
 def _save_review_ledger(path: Path, ledger: dict) -> None:
@@ -75,13 +105,14 @@ def _save_review_ledger(path: Path, ledger: dict) -> None:
 
 
 def submit_drafts(client: ToolClient, packets: list[dict], ledger_path: Path) -> list[dict]:
-    """Post each draft once. An identical case id + draft hash reuses the stored review."""
+    """Post each draft once. Reuse only when entity, review date, and draft hash all match."""
     ledger = load_review_ledger(ledger_path)
     reviews = []
     for packet in packets:
         case_id = packet["case_id"]
         digest = draft_hash(packet)
-        prior = _prior_review(ledger, case_id, digest)
+        key = _business_key(packet)
+        prior = _prior_review(ledger, key, digest) if key else None
         if prior:
             reviews.append(
                 {
@@ -95,7 +126,11 @@ def submit_drafts(client: ToolClient, packets: list[dict], ledger_path: Path) ->
             continue
         try:
             body = client.submit_review(case_id, packet)
+            _remember_submit(client, case_id)
         except ServiceError as exc:
+            _remember_submit(client, case_id)
+            note = packet.get("narrative") or ""
+            packet["narrative"] = note.rstrip() + "\nDraft was not submitted."
             reviews.append({"case_id": case_id, "error": exc.error})
             continue
         server_hash = body.get("draft_hash")
@@ -108,7 +143,8 @@ def submit_drafts(client: ToolClient, packets: list[dict], ledger_path: Path) ->
             "status": body.get("status"),
             "draft_hash": digest,
         }
-        ledger.setdefault(case_id, {})[digest] = entry
+        if key:
+            ledger.setdefault(key, {})[digest] = entry
         _save_review_ledger(ledger_path, ledger)
         reviews.append({"case_id": case_id, **entry})
     return reviews
@@ -156,9 +192,18 @@ def main(argv: list[str] | None = None) -> None:
     client = ToolClient(a.api_url)
     with store_cm as store:
         try:
-            ingest(a.data, store, a.api_url)
-            case_ids = a.cases or [c["case_id"] for c in client.list_cases()]
-        except (IngestError, OSError, ServiceError) as exc:
+            client.health()
+            cases = client.list_cases()
+            links = {
+                c["case_id"]: {
+                    "documents": list(c["documents"]),
+                    "intake_source": c.get("intake_source"),
+                }
+                for c in cases
+            }
+            ingest(a.data, store, case_links=links)
+            case_ids = a.cases or [c["case_id"] for c in cases]
+        except (IngestError, OSError, ServiceError, KeyError, TypeError) as exc:
             sys.exit(f"Cannot start the run: {exc}")
         runs = run_cases(case_ids, client, store)
 
@@ -199,6 +244,8 @@ def main(argv: list[str] | None = None) -> None:
         path.write_text(json.dumps(reviews, indent=2) + "\n")
         fresh = sum("review_id" in r and not r.get("reused") for r in reviews)
         reused = sum(bool(r.get("reused")) for r in reviews)
+        for event in getattr(client, "review_submit_events", []):
+            sink.write(event)
         print(f"Submitted {fresh} drafts for human review; reused {reused}; see {path}")
 
 

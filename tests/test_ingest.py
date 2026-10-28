@@ -23,7 +23,7 @@ class AdapterStoreSchemaTests(unittest.TestCase):
     """Cycle 2.2: SCHEMA_VERSION 3 persists ENG-01 Document columns."""
 
     def test_schema_version_is_3(self):
-        self.assertEqual(SCHEMA_VERSION, 3)
+        self.assertEqual(SCHEMA_VERSION, 4)
 
     def test_corporate_and_identity_columns_round_trip(self):
         store = SqliteKnowledgeStore(":memory:")
@@ -417,6 +417,56 @@ class ServiceLinkTests(unittest.TestCase):
             self.assertFalse(report["case_links_from_service"])
             self.assertTrue(any("could not read case list" in w for w in report["warnings"]))
             self.assertEqual(len(store.case_documents("KYC-D01")), 3)
+
+
+class DocumentFaultParseTests(unittest.TestCase):
+    def test_conflicting_labels_are_unset_and_a_bad_date_does_not_abort(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder, True)
+        path = folder / "C9-INTAKE.md"
+        path.write_text(
+            "Source ID: C9-INTAKE\n"
+            "Review date: not-a-date\n"
+            "Entity reference: ENT-1\n"
+            "Entity reference: ENT-2\n"
+            "Company name: North Mill\n"
+        )
+        parsed = parse_file(path, "documents")
+        doc = parsed.document
+        self.assertTrue(doc.review_date_unreadable)
+        self.assertIsNone(doc.review_date)
+        self.assertIsNone(doc.entity_ref)
+        self.assertIn("entity reference", doc.label_conflicts)
+        self.assertEqual(doc.company_name, "North Mill")
+
+    def test_empty_file_is_flagged(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder, True)
+        path = folder / "C9-CORPORATE.md"
+        path.write_text("   \n")
+        self.assertTrue(parse_file(path, "documents").document.empty)
+
+    def test_duplicate_identity_is_a_document_fault(self):
+        from kyc_copilot.contracts.models import Document, ParsedFile, Source
+        from kyc_copilot.ingestion.ingest import document_set_faults
+
+        def item(source_id: str, kind: str) -> ParsedFile:
+            return ParsedFile(
+                Source(source_id, "document", "untrusted", None, source_id, "x", "h"),
+                document=Document(source_id, "C1", kind, kind == "intake", None, None),
+            )
+
+        faults = document_set_faults(
+            [
+                item("C1-INTAKE", "intake"),
+                item("C1-ONE-IDENTITY", "identity"),
+                item("C1-TWO-IDENTITY", "identity"),
+            ]
+        )
+        self.assertEqual(
+            faults["C1"],
+            ["missing_corporate", "duplicate_identity"],
+        )
 
 
 if __name__ == "__main__":

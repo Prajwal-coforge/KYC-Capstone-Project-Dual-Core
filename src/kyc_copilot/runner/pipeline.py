@@ -7,10 +7,39 @@ import time
 from kyc_copilot.adapters.redaction import canonical_json, redact
 from kyc_copilot.adapters.tools_client import TOOLS, ToolClient, ToolResult
 from kyc_copilot.contracts.interfaces import KnowledgeStore, Narrator
-from kyc_copilot.contracts.models import CaseEvidence, CaseRun
+from kyc_copilot.contracts.models import CaseEvidence, CaseRun, Document
 from kyc_copilot.domain.packet import build_packet
 from kyc_copilot.domain.rules import decide
 from kyc_copilot.narrative.narrator import TemplateNarrator
+
+_DOC_KINDS = ("intake", "corporate", "identity")
+
+
+def _document_faults(docs: list[Document]) -> tuple[str, ...]:
+    """Missing, duplicate, unknown, empty, unreadable, or self-contradictory documents."""
+    counts = {kind: 0 for kind in _DOC_KINDS}
+    unknown = False
+    extra: list[str] = []
+    for doc in docs:
+        if doc.doc_type not in counts:
+            unknown = True
+        else:
+            counts[doc.doc_type] += 1
+        if doc.empty and "empty_document" not in extra:
+            extra.append("empty_document")
+        if doc.review_date_unreadable and "review_date_unreadable" not in extra:
+            extra.append("review_date_unreadable")
+        if doc.label_conflicts and "label_conflict" not in extra:
+            extra.append("label_conflict")
+    codes: list[str] = []
+    for kind in _DOC_KINDS:
+        if counts[kind] == 0:
+            codes.append(f"missing_{kind}")
+        elif counts[kind] > 1:
+            codes.append(f"duplicate_{kind}")
+    if unknown:
+        codes.append("unknown_document")
+    return tuple(codes + extra)
 
 
 def gather_evidence(
@@ -22,10 +51,12 @@ def gather_evidence(
     intake = None
     corporate = None
     identity = None
+    docs = []
     for source in store.case_documents(case_id):
         doc = store.get_document(source.source_id)
         if doc is None:
             continue
+        docs.append(doc)
         if doc.is_intake and intake is None:
             intake = doc
         if doc.doc_type == "corporate" and corporate is None:
@@ -65,7 +96,10 @@ def gather_evidence(
         filing_address=corporate.filing_address if corporate else None,
         holder_name=identity.holder_name if identity else None,
         birth_year=identity.birth_year if identity else None,
+        document_reference=identity.document_reference if identity else None,
         identity_not_supplied=identity.identity_not_supplied if identity else False,
+        company_name=corporate.company_name if corporate else None,
+        document_faults=_document_faults(docs),
     )
     return evidence, results, intake.source_id if intake else None
 

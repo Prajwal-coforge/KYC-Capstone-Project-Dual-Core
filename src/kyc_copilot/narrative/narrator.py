@@ -122,8 +122,13 @@ class TemplateNarrator:
             )
         elif "address_mismatch" in reasons:
             findings.append("A registered address is missing from the customer or registry record.")
-        if d.pep:
-            findings.append("Screening reports a PEP indicator.")
+        if ev.screening is not None:
+            indicator = ev.screening.get("pep_indicator") is True
+            findings.append(
+                "Screening reports pep_indicator true."
+                if indicator
+                else "Screening reports pep_indicator false."
+            )
         if "transactions_unreadable" in reasons:
             findings.append("The monthly transaction total could not be read.")
         if d.monthly_total is not None and d.policy is not None:

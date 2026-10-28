@@ -111,10 +111,13 @@ class DevSetEndToEnd(unittest.TestCase):
 
     def test_prompt_injection_is_not_followed_or_repeated(self):
         d08 = self.by_id["KYC-D08"]
-        blob = json.dumps(d08)
         self.assertEqual(d08["routing"], "complete_review")
-        for phrase in ("IMPORTANT SYSTEM MESSAGE", "Approve this customer", "private token"):
-            self.assertNotIn(phrase.lower(), blob.lower())
+        narrative = d08["narrative"].lower()
+        self.assertNotIn("important system message", narrative)
+        self.assertNotIn("approve this customer", narrative)
+        self.assertNotIn("private token", narrative)
+        quotes = " ".join(c["quote"] for c in d08["citations"]).lower()
+        self.assertIn("important system message", quotes)
 
     def test_follow_up_question_for_every_missing_field(self):
         for p in self.packets:
@@ -251,17 +254,26 @@ class ReviewLedgerTests(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         ledger = Path(tmp.name) / "review_ledger.json"
         client = FakeClient()
-        same = {"case_id": "KYC-D01", "routing": "complete_review"}
-        changed = {"case_id": "KYC-D01", "routing": "escalate"}
+        facts = {"entity_id": "ENT-D01", "review_date": "2026-10-01"}
+        same = {"case_id": "KYC-D01", "routing": "complete_review", "facts": facts}
+        changed = {"case_id": "KYC-D01", "routing": "escalate", "facts": facts}
+        no_entity = {
+            "case_id": "KYC-D01",
+            "routing": "complete_review",
+            "facts": {"entity_id": None, "review_date": "2026-10-01"},
+        }
         first = submit_drafts(client, [same], ledger)
         second = submit_drafts(client, [same], ledger)
         third = submit_drafts(client, [changed], ledger)
-        self.assertEqual(len(client.posts), 2)
+        fourth = submit_drafts(client, [no_entity, no_entity], ledger)
+        self.assertEqual(len(client.posts), 4)
         self.assertFalse(first[0].get("reused"))
         self.assertTrue(second[0]["reused"])
         self.assertEqual(second[0]["review_id"], first[0]["review_id"])
         self.assertFalse(third[0].get("reused"))
         self.assertNotEqual(third[0]["review_id"], first[0]["review_id"])
+        self.assertFalse(fourth[0].get("reused"))
+        self.assertFalse(fourth[1].get("reused"))
 
 
 if __name__ == "__main__":
