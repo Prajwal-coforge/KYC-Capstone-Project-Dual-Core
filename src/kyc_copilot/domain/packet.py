@@ -92,23 +92,51 @@ def _follow_up(field: str, decision: Decision, evidence: CaseEvidence) -> str:
     if field == "address_explanation":
         c = evidence.customer.get("registered_address") if evidence.customer else None
         r = evidence.registry.get("registered_address") if evidence.registry else None
-        f = evidence.filing_address
-        filing = f if isinstance(f, str) and f.strip() else None
+        filing = evidence.filing_address if isinstance(evidence.filing_address, str) else None
+        customer = c.strip() if isinstance(c, str) and c.strip() else None
+        registry = r.strip() if isinstance(r, str) and r.strip() else None
+        filing = filing.strip() if isinstance(filing, str) and filing.strip() else None
         if compare_addresses(c, r) in ("same", "normalized_same") and filing is not None:
+            agreed = customer or registry
             return (
-                f"Our customer and registry records list '{c}' but the corporate filing "
+                f"Our customer and registry records list '{agreed}' but the corporate filing "
                 f"lists '{filing}'. Please confirm which address is current and provide "
                 "supporting evidence."
             )
-        if filing is not None:
+        if customer is not None and registry is not None:
+            if filing is not None:
+                return (
+                    f"Our records list the registered address as '{customer}' while the registry "
+                    f"lists '{registry}' and the corporate filing lists '{filing}'. "
+                    "Please confirm which address is current and provide supporting evidence."
+                )
             return (
-                f"Our records list the registered address as '{c}' while the registry "
-                f"lists '{r}' and the corporate filing lists '{filing}'. "
-                "Please confirm which address is current and provide supporting evidence."
+                f"Our records list the registered address as '{customer}' while the registry "
+                f"lists '{registry}'. Please confirm which address is current and provide "
+                "supporting evidence."
             )
+        missing = []
+        if customer is None:
+            missing.append("customer record")
+        if registry is None:
+            missing.append("registry")
+        supplied = []
+        if customer is not None:
+            supplied.append(f"the customer record lists '{customer}'")
+        if registry is not None:
+            supplied.append(f"the registry lists '{registry}'")
+        if filing is not None:
+            supplied.append(f"the corporate filing lists '{filing}'")
+        gap = "The " + " and the ".join(missing) + " did not supply an address."
+        detail = ""
+        if supplied:
+            detail = " " + supplied[0][0].upper() + supplied[0][1:]
+            if len(supplied) > 1:
+                detail += " while " + " and ".join(supplied[1:])
+            detail += "."
         return (
-            f"Our records list the registered address as '{c}' while the registry lists '{r}'. "
-            "Please confirm which address is current and provide supporting evidence."
+            f"{gap}{detail} Please confirm which address is current and provide "
+            "supporting evidence."
         )
     return f"Please provide the missing {field.replace('_', ' ')} for {subject}."
 

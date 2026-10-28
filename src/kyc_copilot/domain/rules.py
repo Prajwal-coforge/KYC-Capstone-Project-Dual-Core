@@ -10,6 +10,7 @@ Missing-information fields are kept even when a higher rule wins.
 
 from __future__ import annotations
 
+import math
 import re
 import unicodedata
 from collections.abc import Callable
@@ -136,8 +137,12 @@ def _scratch() -> _Scratch:
 
 
 def _number(value: object) -> int | float | None:
-    """Accept int/float only; bool is excluded so True/False never count as amounts."""
-    return value if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+    """Accept finite int/float only; bool, NaN, and infinity are not amounts."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    return value
 
 
 def _registry_active(registry: dict[str, Any] | None) -> bool:
@@ -341,18 +346,15 @@ class IdentityDocumentRule(StatutoryRule):
     precedence: ClassVar[int] = 20
 
     def apply(self, evidence: CaseEvidence) -> None:
-        """Request identity unless name, birth year, and document reference are all supplied."""
+        """Request identity when the document is missing, empty, or has no holder name."""
         scratch = _scratch()
         status = (evidence.identity_status or "").strip().casefold()
         missing_holder = _present_text(evidence.holder_name) is None
-        missing_reference = _present_text(evidence.document_reference) is None
         if (
             status != "attached"
             or not evidence.identity_document_present
             or evidence.identity_not_supplied
             or missing_holder
-            or evidence.birth_year is None
-            or missing_reference
         ):
             scratch.missing.append("identity_document")
             scratch.request.append("identity_document_missing")
@@ -363,7 +365,7 @@ class AddressComparisonRule(StatutoryRule):
     precedence: ClassVar[int] = 22
 
     def apply(self, evidence: CaseEvidence) -> None:
-        """Request address_explanation only when all three addresses are present and differ."""
+        """Compare the addresses that were supplied. A missing filing is not itself a difference."""
         scratch = _scratch()
         customer = evidence.customer
         registry = evidence.registry
@@ -371,16 +373,19 @@ class AddressComparisonRule(StatutoryRule):
             scratch.address_check = "unknown"
             return
 
-        addresses = [
-            _present_text(customer.get("registered_address")),
-            _present_text(registry.get("registered_address")),
-            _present_text(evidence.filing_address),
+        present = [
+            value
+            for value in (
+                _present_text(customer.get("registered_address")),
+                _present_text(registry.get("registered_address")),
+                _present_text(evidence.filing_address),
+            )
+            if value is not None
         ]
-        if any(value is None for value in addresses):
+        if len(present) < 2:
             scratch.address_check = "unknown"
             return
 
-        present = [value for value in addresses if value is not None]
         pairwise = [
             compare_addresses(present[i], present[j])
             for i in range(len(present))

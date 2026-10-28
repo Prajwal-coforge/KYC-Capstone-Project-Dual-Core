@@ -24,25 +24,58 @@ TOOL_NAMES = {
 }
 
 
+def _supplied(value: object) -> str | None:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
 def _address_difference_note(
     customer_addr: str | None, registry_addr: str | None, filing_addr: str | None
 ) -> str:
-    """Describe which present addresses disagree; do not invent a customer/registry split."""
+    """Describe which present addresses disagree; name a source that supplied none."""
+    customer = _supplied(customer_addr)
+    registry = _supplied(registry_addr)
+    filing = _supplied(filing_addr)
     cust_reg = compare_addresses(customer_addr, registry_addr)
-    filing = filing_addr if isinstance(filing_addr, str) and filing_addr.strip() else None
     if cust_reg in ("same", "normalized_same") and filing is not None:
+        agreed = customer or registry
         return (
-            f"The customer and registry addresses agree ('{customer_addr}') but the "
+            f"The customer and registry addresses agree ('{agreed}') but the "
             f"corporate filing lists '{filing}'; neither source is treated as authoritative."
         )
-    parts = [
-        f"The customer record address '{customer_addr}' differs from the registry "
-        f"address '{registry_addr}'"
-    ]
+    if customer is not None and registry is not None:
+        parts = [
+            f"The customer record address '{customer}' differs from the registry "
+            f"address '{registry}'"
+        ]
+        if filing is not None:
+            parts.append(f"; the corporate filing lists '{filing}'")
+        parts.append("; neither source is treated as authoritative.")
+        return "".join(parts)
+    missing = []
+    if customer is None:
+        missing.append("customer record")
+    if registry is None:
+        missing.append("registry")
+    supplied = []
+    if customer is not None:
+        supplied.append(f"the customer record lists '{customer}'")
+    if registry is not None:
+        supplied.append(f"the registry lists '{registry}'")
     if filing is not None:
-        parts.append(f"; the corporate filing lists '{filing}'")
-    parts.append("; neither source is treated as authoritative.")
-    return "".join(parts)
+        supplied.append(f"the corporate filing lists '{filing}'")
+    gap = "The " + " and the ".join(missing) + " did not supply an address."
+    if len(supplied) < 2:
+        return gap
+    detail = (
+        supplied[0][0].upper()
+        + supplied[0][1:]
+        + " differs from "
+        + " and ".join(supplied[1:])
+        + "; neither source is treated as authoritative."
+    )
+    return f"{gap} {detail}"
 
 
 class TemplateNarrator:

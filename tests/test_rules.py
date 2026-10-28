@@ -162,23 +162,39 @@ class RulesTests(unittest.TestCase):
         self.assertIn("customer_fields_missing", d.reasons)
         self.assertNotIn("unsupported_scope", d.reasons)
 
-    def test_two_addresses_without_filing_are_not_an_address_mismatch(self):
+    def test_missing_filing_still_compares_customer_and_registry(self):
         d = self.route(
             evidence(
                 filing_address=None,
                 registry=registry(registered_address="9 New Quay, Alder"),
             )
         )
-        self.assertNotIn("address_explanation", d.missing_information)
-        self.assertNotEqual(d.routing, "request_information")
+        self.assertEqual(d.routing, "request_information")
+        self.assertEqual(d.missing_information, ["address_explanation"])
+        self.assertEqual(d.address_check, "different")
 
-    def test_missing_birth_year_requests_identity_document(self):
+    def test_missing_customer_address_still_compares_the_others(self):
+        customer_record = customer(registered_address=None)
+        d = self.route(
+            evidence(
+                customer=customer_record,
+                registry=registry(registered_address="9 New Quay, Alder"),
+                filing_address="102 Orchard Walk, Alder.",
+            )
+        )
+        self.assertEqual(d.routing, "request_information")
+        self.assertEqual(d.missing_information, ["address_explanation"])
+        self.assertEqual(d.address_check, "different")
+
+    def test_missing_birth_year_does_not_request_identity_document(self):
         d = self.route(evidence(birth_year=None))
-        self.assertIn("identity_document", d.missing_information)
+        self.assertNotIn("identity_document", d.missing_information)
+        self.assertEqual(d.routing, "complete_review")
 
-    def test_missing_document_reference_requests_identity_document(self):
+    def test_missing_document_reference_does_not_request_identity_document(self):
         d = self.route(evidence(document_reference=None))
-        self.assertIn("identity_document", d.missing_information)
+        self.assertNotIn("identity_document", d.missing_information)
+        self.assertEqual(d.routing, "complete_review")
 
     def test_company_name_conflict_escalates_without_choosing(self):
         d = self.route(
@@ -342,6 +358,21 @@ class RulesTests(unittest.TestCase):
         for bad in ("12000", True, None):
             with self.subTest(bad=bad):
                 self.assertEqual(self.route(evidence(transactions=total(bad))).routing, "escalate")
+
+    def test_non_finite_monthly_total_escalates_as_unreadable(self):
+        for bad in (float("nan"), float("inf"), float("-inf")):
+            decision = self.route(
+                evidence(
+                    transactions={
+                        "source_id": "C1-TRANSACTIONS",
+                        "monthly_total": bad,
+                        "currency": "XCR",
+                    }
+                )
+            )
+            self.assertEqual(decision.routing, "escalate", bad)
+            self.assertIn("transactions_unreadable", decision.reasons)
+            self.assertNotIn("monthly_total_above_threshold", decision.reasons)
 
     # ---- policy version by review date (stale-policy trap) --------------------------------
 
