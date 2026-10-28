@@ -44,6 +44,23 @@ class FilingAddressNoteAndCitationTests(unittest.TestCase):
         self.assertIn(filing, question)
         self.assertIn("filing", question.lower())
 
+    def test_missing_customer_address_names_the_source(self):
+        customer = {**evidence().customer, "registered_address": None}
+        registry = {**evidence().registry, "registered_address": "9 New Quay, Alder"}
+        ev = evidence(
+            customer=customer,
+            registry=registry,
+            filing_address="102 Orchard Walk, Alder.",
+        )
+        decision = decide(ev, self.find)
+        note = TemplateNarrator().write(decision, ev)
+        question = _follow_up("address_explanation", decision, ev)
+        for text in (note, question):
+            self.assertIn("customer record did not supply an address", text)
+            self.assertNotIn("None", text)
+            self.assertIn("9 New Quay, Alder", text)
+            self.assertIn("102 Orchard Walk, Alder.", text)
+
     def test_address_mismatch_packet_cites_corporate_filing(self):
         tmp = Path(tempfile.mkdtemp())
         mock = MockService(tmp / "mock.sqlite")

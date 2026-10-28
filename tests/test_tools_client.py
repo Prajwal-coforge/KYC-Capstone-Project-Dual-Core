@@ -145,6 +145,26 @@ class ToolClientTests(unittest.TestCase):
         body = client.submit_review("C1", {"case_id": "C1"})
         self.assertEqual(body["status"], "pending")
         self.assertEqual(fake.requests, [("POST", "/v1/reviews")])
+        self.assertEqual(client.submit_attempt_log, ((1, "ok"),))
+
+    def test_health_retries_then_succeeds(self):
+        fake = FakeService({"/health": [TIMEOUT, (200, {"status": "ok"})]})
+        self.addCleanup(fake.stop)
+        client = ToolClient(fake.url, timeout=2)
+        client.sleep = lambda _delay: None
+        self.assertEqual(client.health()["status"], "ok")
+        self.assertEqual(fake.count("/health"), 2)
+
+    def test_unknown_key_name_is_logged_without_its_value(self):
+        payload = {**GOOD, "surprise": "secret-value"}
+        fake, client = self.serve([(200, payload)])
+        with self.assertLogs("kyc_copilot.adapters", level="INFO") as captured:
+            result = client.fetch("C1", "customer")
+        self.assertTrue(result.ok)
+        text = " ".join(captured.output)
+        self.assertIn("surprise", text)
+        self.assertNotIn("secret-value", text)
+        self.assertEqual(result.attempt_log, ((1, "ok"),))
 
     def test_client_has_no_write_or_approval_operations(self):
         for name in ("create_record", "approve", "reject", "post_record"):

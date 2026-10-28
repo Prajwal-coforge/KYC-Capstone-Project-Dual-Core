@@ -25,6 +25,7 @@ EXPECTED_RULE_ORDER = (
     "tool_availability",
     "cross_source_conflict",
     "scope_and_policy",
+    "document_faults",
     "ownership_depth",
     "screening_match",
     "identity_document",
@@ -66,6 +67,7 @@ def evidence(**over) -> CaseEvidence:
         filing_address=FILING_ADDRESS,
         holder_name="Ari Vale",
         birth_year=1985,
+        document_reference="SYN-ID-1",
         identity_not_supplied=False,
     )
     return replace(base, **over)
@@ -128,9 +130,92 @@ class RulesTests(unittest.TestCase):
         d = self.route(evidence(registry=registry(owners=owners)))
         self.assertEqual(d.facts["owner_names"], ["Ari Vale", "Bo Lin"])
 
-    def test_registry_with_no_owners_is_an_empty_list_not_null(self):
+    def test_registry_with_no_owners_escalates_and_nulls_names(self):
         d = self.route(evidence(registry=registry(owners=[])))
-        self.assertEqual(d.facts["owner_names"], [])
+        self.assertEqual(d.routing, "escalate")
+        self.assertIn("owners_not_established", d.reasons)
+        self.assertIsNone(d.facts["owner_names"])
+
+    def test_non_xcr_currency_escalates(self):
+        bad = {**total(12000), "currency": "USD"}
+        d = self.route(evidence(transactions=bad))
+        self.assertEqual(d.routing, "escalate")
+        self.assertIn("currency_mismatch", d.reasons)
+
+    def test_missing_currency_escalates(self):
+        bad = {**total(12000)}
+        del bad["currency"]
+        d = self.route(evidence(transactions=bad))
+        self.assertIn("currency_mismatch", d.reasons)
+
+    def test_inactive_registry_escalates_without_using_owners(self):
+        d = self.route(evidence(registry=registry(registry_status="dissolved")))
+        self.assertEqual(d.routing, "escalate")
+        self.assertIn("registry_not_active", d.reasons)
+        self.assertIsNone(d.facts["owner_names"])
+        self.assertNotIn("address_explanation", d.missing_information)
+
+    def test_blank_customer_scope_field_escalates_without_unsupported(self):
+        d = self.route(evidence(customer=customer(entity_type=None)))
+        self.assertEqual(d.classification, "kyc_review")
+        self.assertEqual(d.routing, "escalate")
+        self.assertIn("customer_fields_missing", d.reasons)
+        self.assertNotIn("unsupported_scope", d.reasons)
+
+    def test_missing_filing_still_compares_customer_and_registry(self):
+        d = self.route(
+            evidence(
+                filing_address=None,
+                registry=registry(registered_address="9 New Quay, Alder"),
+            )
+        )
+        self.assertEqual(d.routing, "request_information")
+        self.assertEqual(d.missing_information, ["address_explanation"])
+        self.assertEqual(d.address_check, "different")
+
+    def test_missing_customer_address_still_compares_the_others(self):
+        customer_record = customer(registered_address=None)
+        d = self.route(
+            evidence(
+                customer=customer_record,
+                registry=registry(registered_address="9 New Quay, Alder"),
+                filing_address="102 Orchard Walk, Alder.",
+            )
+        )
+        self.assertEqual(d.routing, "request_information")
+        self.assertEqual(d.missing_information, ["address_explanation"])
+        self.assertEqual(d.address_check, "different")
+
+    def test_missing_birth_year_does_not_request_identity_document(self):
+        d = self.route(evidence(birth_year=None))
+        self.assertNotIn("identity_document", d.missing_information)
+        self.assertEqual(d.routing, "complete_review")
+
+    def test_missing_document_reference_does_not_request_identity_document(self):
+        d = self.route(evidence(document_reference=None))
+        self.assertNotIn("identity_document", d.missing_information)
+        self.assertEqual(d.routing, "complete_review")
+
+    def test_company_name_conflict_escalates_without_choosing(self):
+        d = self.route(
+            evidence(
+                customer=customer(company_name="North Mill"),
+                company_name="South Mill",
+            )
+        )
+        self.assertEqual(d.routing, "escalate")
+        self.assertIn("company_name_conflict", d.reasons)
+        self.assertNotIn("North Mill", d.facts.values())
+
+    def test_blank_company_name_is_not_a_conflict(self):
+        d = self.route(evidence(company_name="South Mill"))
+        self.assertNotIn("company_name_conflict", d.reasons)
+
+    def test_document_faults_escalate(self):
+        d = self.route(evidence(document_faults=("missing_corporate", "label_conflict")))
+        self.assertEqual(d.routing, "escalate")
+        self.assertIn("missing_corporate", d.reasons)
+        self.assertIn("label_conflict", d.reasons)
 
     # ---- missing information -------------------------------------------------------------
 
@@ -274,6 +359,21 @@ class RulesTests(unittest.TestCase):
             with self.subTest(bad=bad):
                 self.assertEqual(self.route(evidence(transactions=total(bad))).routing, "escalate")
 
+    def test_non_finite_monthly_total_escalates_as_unreadable(self):
+        for bad in (float("nan"), float("inf"), float("-inf")):
+            decision = self.route(
+                evidence(
+                    transactions={
+                        "source_id": "C1-TRANSACTIONS",
+                        "monthly_total": bad,
+                        "currency": "XCR",
+                    }
+                )
+            )
+            self.assertEqual(decision.routing, "escalate", bad)
+            self.assertIn("transactions_unreadable", decision.reasons)
+            self.assertNotIn("monthly_total_above_threshold", decision.reasons)
+
     # ---- policy version by review date (stale-policy trap) --------------------------------
 
     def test_last_day_of_v1_uses_v1_threshold(self):
@@ -390,7 +490,7 @@ class StatutoryRuleRegistryTests(unittest.TestCase):
         self.assertEqual([r.rule_id for r in rules], list(EXPECTED_RULE_ORDER))
         precedences = [type(r).precedence for r in rules]
         self.assertEqual(precedences, sorted(precedences))
-        self.assertEqual(precedences, [10, 11, 12, 14, 16, 20, 22, 30])
+        self.assertEqual(precedences, [10, 11, 12, 13, 14, 16, 20, 22, 30])
 
 
 class CrossSourceConflictTests(unittest.TestCase):

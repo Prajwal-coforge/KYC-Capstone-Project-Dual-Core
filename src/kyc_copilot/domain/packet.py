@@ -5,6 +5,8 @@ Domain layer: contracts + same-layer rules only. Store I/O goes through Knowledg
 
 from __future__ import annotations
 
+import re
+
 from kyc_copilot.contracts.address import compare_addresses
 from kyc_copilot.contracts.interfaces import KnowledgeStore, Narrator
 from kyc_copilot.contracts.models import CaseEvidence, Decision, Document, Source
@@ -26,6 +28,9 @@ SCOPE_PHRASES = {
         "A missing registry response means owner_names is null, "
         "not an empty list or assumed owners."
     ),
+    "registry_not_active": "unavailable registry",
+    "owners_not_established": "not an empty list or assumed owners.",
+    "customer_fields_missing": "Review date determines the applicable policy version.",
     "identity_document_missing": "Missing identity document is identity_document.",
     "address_mismatch": (
         "An address discrepancy requires address_explanation; never silently choose a source."
@@ -42,6 +47,7 @@ SCOPE_PHRASES = {
 }
 RETRY_PHRASE = "Retry failed tools at most twice (three total attempts), then stop and escalate."
 COMPLETE_PHRASE = "otherwise complete_review."
+_INSTRUCTION_LINE = re.compile(r"important|ignore previous|\bapprove\b", re.IGNORECASE)
 
 
 def _line(content: str, prefix: str) -> str | None:
@@ -265,6 +271,14 @@ def build_citations(
                 ("EDD monthly threshold:", "Monthly threshold for enhanced due diligence"),
             ):
                 candidates.append((claim, d.policy.source_id, _line(policy.content, prefix)))
+            if "currency_mismatch" in d.reasons:
+                candidates.append(
+                    (
+                        "Currency must be XCR",
+                        d.policy.source_id,
+                        _field_quote(policy.content, "Currency is the invented XCR crown."),
+                    )
+                )
 
     if ev.customer:
         sid = ev.customer["source_id"]
@@ -292,6 +306,13 @@ def build_citations(
             candidates.append(("Registry owner", sid, json_fragment("name", name)))
 
     _append_conflict_document_citations(candidates, d, ev, store)
+    for source in store.case_documents(ev.case_id):
+        for raw in source.content.split("\n"):
+            line = raw.rstrip("\r")
+            if line.strip() and _INSTRUCTION_LINE.search(line):
+                candidates.append(
+                    ("Untrusted instruction in a case document", source.source_id, line)
+                )
 
     if ev.screening:
         sid = ev.screening["source_id"]

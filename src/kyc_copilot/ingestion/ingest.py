@@ -99,6 +99,39 @@ def apply_case_links(
     return out, warnings
 
 
+_DOC_KINDS = ("intake", "corporate", "identity")
+
+
+def document_set_faults(parsed: list[ParsedFile]) -> dict[str, list[str]]:
+    """Per-case missing, duplicate, or unknown document types. Empty when the set is exact."""
+    grouped: dict[str, list] = {}
+    for item in parsed:
+        doc = item.document
+        if doc is None or not doc.case_id:
+            continue
+        grouped.setdefault(doc.case_id, []).append(doc)
+    faults: dict[str, list[str]] = {}
+    for case_id, docs in sorted(grouped.items()):
+        counts = {kind: 0 for kind in _DOC_KINDS}
+        unknown = False
+        for doc in docs:
+            if doc.doc_type not in counts:
+                unknown = True
+                continue
+            counts[doc.doc_type] += 1
+        codes: list[str] = []
+        for kind in _DOC_KINDS:
+            if counts[kind] == 0:
+                codes.append(f"missing_{kind}")
+            elif counts[kind] > 1:
+                codes.append(f"duplicate_{kind}")
+        if unknown:
+            codes.append("unknown_document")
+        if codes:
+            faults[case_id] = codes
+    return faults
+
+
 def policy_overlap_warnings(parsed: list[ParsedFile]) -> list[str]:
     """Warn when two policies share entity/jurisdiction with overlapping effective windows."""
     policies = [p.policy for p in parsed if p.policy]
@@ -159,4 +192,5 @@ def ingest(
         "removed_ids": diff["removed"],
         "totals": store.counts(),
         "warnings": warnings,
+        "document_faults": document_set_faults(parsed),
     }
