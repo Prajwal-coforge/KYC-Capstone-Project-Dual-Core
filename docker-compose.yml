@@ -1,8 +1,9 @@
-# Two containers sharing one network namespace:
-#   mock - the fictional enterprise service on 127.0.0.1:8766 (loopback only, as the package requires)
-#   dev  - your working shell; reaches the mock at http://127.0.0.1:8766
-# The repo is bind-mounted at /app, so edits on the host appear immediately in both.
-# State (mock.sqlite, app.sqlite) lives in the named volume "kyc-state", not in git.
+# Three services:
+#   mock     - fictional enterprise service on 127.0.0.1:8766 (loopback only; SQLite mock.sqlite)
+#   postgres - copilot knowledge store (not the mock bank)
+#   dev      - working shell; shares mock's network so http://127.0.0.1:8766 works
+# The repo is bind-mounted at /app. Copilot state in Compose is Postgres (`kyc-postgres`).
+# Local/assessor runs without Compose still default to `--db .state/app.sqlite`.
 x-common: &common
   image: kyc-capstone:dev
   build: .
@@ -12,6 +13,19 @@ x-common: &common
     - kyc-state:/app/.state
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    env_file:
+      - .env.example
+    volumes:
+      - kyc-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kyc -d kyc"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   mock:
     <<: *common
     command: ["uv", "run", "--locked", "python", "tools/runtime.py", "serve", "--port", "8766"]
@@ -26,9 +40,14 @@ services:
     <<: *common
     command: ["sleep", "infinity"]
     network_mode: "service:mock"
+    environment:
+      KYC_DATABASE_URL: postgresql://kyc:kyc@postgres:5432/kyc?sslmode=disable
     depends_on:
       mock:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
 
 volumes:
   kyc-state:
+  kyc-postgres:
