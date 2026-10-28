@@ -148,6 +148,12 @@ class RulesTests(unittest.TestCase):
         d = self.route(evidence(transactions=bad))
         self.assertIn("currency_mismatch", d.reasons)
 
+    def test_registry_owners_that_are_not_a_list_are_unusable(self):
+        d = self.route(evidence(registry=registry(owners="nope")))
+        self.assertEqual(d.routing, "escalate")
+        self.assertIn("owners_not_established", d.reasons)
+        self.assertIsNone(d.facts["owner_names"])
+
     def test_inactive_registry_escalates_without_using_owners(self):
         d = self.route(evidence(registry=registry(registry_status="dissolved")))
         self.assertEqual(d.routing, "escalate")

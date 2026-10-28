@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import runpy
 import sqlite3
 import tempfile
@@ -109,7 +110,8 @@ class MetricAndRuleEdges(unittest.TestCase):
         decision = decide(ev, store.find_policies)
         self.assertIn("screening_unreadable", decision.reasons)
         self.assertEqual(decision.address_check, "unknown")
-        self.assertIn("address_explanation", decision.missing_information)
+        self.assertNotIn("address_explanation", decision.missing_information)
+        self.assertEqual(decision.routing, "escalate")
 
     def test_renamed_case_id_still_completes(self):
         store = SqliteKnowledgeStore(":memory:")
@@ -282,12 +284,12 @@ class NarrativeAndCitationEdges(unittest.TestCase):
         ]
         joined = "\n".join(notes)
         self.assertIn("outside the supported scope", joined)
-        self.assertIn("could not be established", joined)
-        self.assertIn("does not state the ownership depth", joined)
-        self.assertIn("unrecognized match type", joined)
-        self.assertIn("could not be read", joined)
+        self.assertIn("could not settle on one policy", joined)
+        self.assertIn("does not say how deep the ownership goes", joined)
+        self.assertIn("match type I do not recognize", joined)
+        self.assertIn("could not read the screening response", joined)
         self.assertIn("missing from the customer or registry", joined)
-        self.assertIn("could not be read", joined)
+        self.assertIn("could not read the monthly transaction total", joined)
 
     def test_follow_up_without_a_filing_and_for_an_unknown_field(self):
         decision = _decision()
@@ -388,14 +390,18 @@ class CliEdges(unittest.TestCase):
             path.write_text("[]\n")
             with self.assertRaises(ValueError):
                 load_review_ledger(path)
-            path.write_text(json.dumps({"C1": []}))
+            packet = {
+                "case_id": "C1",
+                "facts": {"entity_id": "ENT-1", "review_date": "2026-10-01"},
+            }
+            key = "ENT-1|2026-10-01"
+            path.write_text(json.dumps({key: []}))
             with self.assertRaises(ValueError):
-                submit_drafts(_Client({}), [{"case_id": "C1"}], path)
-            packet = {"case_id": "C1"}
+                submit_drafts(_Client({}), [packet], path)
             from kyc_copilot.runner.cli import draft_hash
 
             digest = draft_hash(packet)
-            path.write_text(json.dumps({"C1": {digest: {"draft_hash": "no", "review_id": "r"}}}))
+            path.write_text(json.dumps({key: {digest: {"draft_hash": "no", "review_id": "r"}}}))
             with self.assertRaises(ValueError):
                 submit_drafts(_Client({}), [packet], path)
 
@@ -452,7 +458,8 @@ class CliEdges(unittest.TestCase):
             self.assertIn("unreadable", str(caught.exception))
 
     def test_ingest_cli_and_module_entries(self):
-        with tempfile.TemporaryDirectory() as tmp:
+        env = {key: value for key, value in os.environ.items() if key != "KYC_DATABASE_URL"}
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, env, clear=True):
             db = Path(tmp) / "app.sqlite"
             buffer = io.StringIO()
             with redirect_stdout(buffer):

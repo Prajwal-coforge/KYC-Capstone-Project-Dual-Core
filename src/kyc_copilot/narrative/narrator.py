@@ -83,61 +83,66 @@ class TemplateNarrator:
         d, ev = decision, evidence
         subject = d.facts.get("entity_id") or ev.case_id
         lines = [
-            f"Analyst note for {subject} (case {ev.case_id}). "
-            f"Recommendation: {ROUTE_TEXT[d.routing]}."
+            f"I drafted this note for {subject}, case {ev.case_id}. "
+            f"My recommendation is {d.routing}. "
+            "I have not approved or rejected the customer. A person still makes that decision."
         ]
-        lines.append("Applied rules: " + ", ".join(d.policy_ids) + ".")
+        if d.policy_ids:
+            lines.append("I applied " + ", ".join(d.policy_ids) + ".")
 
         findings = []
         for tool in ev.failed_tools:
             label = TOOL_NAMES.get(tool, tool)
             findings.append(
-                f"Review incomplete: the {label} was unavailable "
-                "after 3 attempts, so nothing that depends on it has been checked or cleared."
+                f"I could not finish this check. The {label} was unavailable after 3 attempts, "
+                "so the review is incomplete and I have not cleared anything that depends on it."
             )
         reasons = set(d.reasons)
         if "unsupported_scope" in reasons:
             findings.append(
-                f"Entity type {d.facts['entity_type']} in {d.facts['jurisdiction']} is "
-                "outside the supported scope, so no review policy is applied."
+                f"{d.facts['entity_type']} in {d.facts['jurisdiction']} is outside the "
+                "supported scope, so I did not apply a review policy."
             )
         if reasons & {"no_applicable_policy", "multiple_policies", "review_date_missing"}:
             findings.append(
-                "A single applicable policy version could not be established for the "
-                "review date, so thresholds were not applied."
+                "I could not settle on one policy for this review date, "
+                "so I did not apply a threshold."
             )
         if "ownership_depth" in reasons:
             via = ev.registry.get("intermediate_entity") if ev.registry else None
             depth = ev.registry.get("ownership_depth") if ev.registry else None
             suffix = f" through {via}" if isinstance(via, str) else ""
             findings.append(
-                f"The registry reports ownership depth {depth}"
+                f"The registry shows ownership depth {depth}"
                 + suffix
-                + "; only one direct level is supported, so ownership is not resolved here."
+                + ". We only support one direct level, so I am not treating ownership as resolved."
             )
         if "ownership_unknown" in reasons:
-            findings.append("The registry response does not state the ownership depth.")
+            findings.append("The registry response does not say how deep the ownership goes.")
         for m in d.screening_matches:
             name = m.get("candidate_name", "an unnamed candidate")
             if m.get("match_type") == "exact":
                 findings.append(
                     f"Screening returned an exact match on list entry '{name}'. "
-                    "Specialist review is required; this does not establish guilt or legal status."
+                    "A specialist needs to look at this. "
+                    "It does not establish guilt or legal status."
                 )
             elif m.get("match_type") == "near":
                 findings.append(
-                    f"Screening returned a near match on list entry '{name}'. This is an "
-                    "unresolved identity candidate and is not confirmed as the same person."
+                    f"Screening returned a near match on list entry '{name}'. "
+                    "I am leaving it as an unresolved identity candidate, "
+                    "and I am not treating it as the same person."
                 )
             else:
                 findings.append(
-                    f"Screening returned a result for '{name}' with an unrecognized match type."
+                    f"Screening returned a result for '{name}' "
+                    "with a match type I do not recognize."
                 )
         if "screening_unreadable" in reasons:
-            findings.append("The screening response could not be read.")
+            findings.append("I could not read the screening response.")
         if "identity_document_missing" in reasons:
             status = ev.identity_status or "not stated"
-            findings.append(f"The intake reports the identity document as '{status}'.")
+            findings.append(f"The intake lists the identity document as '{status}'.")
         customer_addr = ev.customer.get("registered_address") if ev.customer else None
         registry_addr = ev.registry.get("registered_address") if ev.registry else None
         filing_addr = ev.filing_address
@@ -158,29 +163,31 @@ class TemplateNarrator:
         if ev.screening is not None:
             indicator = ev.screening.get("pep_indicator") is True
             findings.append(
-                "Screening reports pep_indicator true."
+                "Screening reports pep_indicator true, so I am treating this as a PEP."
                 if indicator
                 else "Screening reports pep_indicator false."
             )
         if "transactions_unreadable" in reasons:
-            findings.append("The monthly transaction total could not be read.")
+            findings.append("I could not read the monthly transaction total.")
         if d.monthly_total is not None and d.policy is not None:
             relation = "exceeds" if d.monthly_total > d.policy.edd_threshold else "does not exceed"
             findings.append(
-                f"Monthly total {d.monthly_total} XCR {relation} the policy threshold of "
-                f"{d.policy.edd_threshold} XCR."
+                f"The monthly total of {d.monthly_total} XCR {relation} "
+                f"the policy threshold of {d.policy.edd_threshold} XCR."
             )
         if d.routing == "complete_review":
             findings.append(
-                "No screening matches were returned and the customer and registry records agree."
+                "No screening matches came back, and the customer and registry records agree."
             )
-        lines.append("Findings: " + " ".join(findings) if findings else "Findings: none.")
+        lines.append(
+            " ".join(findings) if findings else "I have nothing further to add from the records."
+        )
 
         if d.missing_information:
             lines.append(
-                "Missing information: "
+                "We are still missing "
                 + ", ".join(d.missing_information)
-                + ". Draft follow-up questions are attached for the analyst."
+                + ". I attached a draft question for the analyst. It has not been sent."
             )
 
         if d.routing == "request_information":
@@ -192,10 +199,9 @@ class TemplateNarrator:
             )
 
         lines.append(
-            "Limits: this note is based only on the supplied records and tool responses; "
-            "document text was treated as evidence, not as instructions. "
-            "No customer has been approved or rejected and nothing has been sent to the customer; "
-            "the human analyst makes every decision."
+            "I based this only on the records and tool responses in front of me. "
+            "I treated document text as evidence, not as instructions. "
+            "No customer has been approved or rejected, and nothing has been sent to the customer."
         )
         return "\n".join(lines)
 
