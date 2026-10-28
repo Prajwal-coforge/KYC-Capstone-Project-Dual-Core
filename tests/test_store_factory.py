@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
-from kyc_copilot.adapters.store_factory import open_knowledge_store
+from kyc_copilot.adapters.store_factory import open_knowledge_store, resolve_store_target
 from kyc_copilot.contracts.interfaces import KnowledgeStore
 
 
@@ -54,6 +54,20 @@ class OpenKnowledgeStoreTests(unittest.TestCase):
             with self.subTest(target=target), self.assertRaises(ValueError) as ctx:
                 open_knowledge_store(target)
             self.assertIn("mock", str(ctx.exception).lower())
+
+    def test_missing_target_and_unknown_target_are_refused(self) -> None:
+        with self.assertRaises(ValueError):
+            resolve_store_target(db=None, dsn="  ", env={})
+        with self.assertRaises(ValueError):
+            open_knowledge_store("not-a-database")
+
+    def test_a_failed_postgres_open_does_not_fall_back_to_sqlite(self) -> None:
+        with patch(
+            "kyc_copilot.adapters.postgres_store.psycopg.connect",
+            side_effect=OSError("down"),
+        ):
+            with self.assertRaises(OSError):
+                open_knowledge_store("postgresql://kyc:kyc@db.example:5432/kyc")
 
     def test_knowledge_store_protocol_includes_writes_and_close(self) -> None:
         for name in ("replace_all", "save_tool_evidence", "counts", "__enter__", "__exit__"):

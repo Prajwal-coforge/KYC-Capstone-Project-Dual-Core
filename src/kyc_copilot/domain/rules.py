@@ -143,6 +143,8 @@ def _number(value: object) -> int | float | None:
     if isinstance(value, float) and not math.isfinite(value):
         return None
     return value
+
+
 def _registry_active(registry: dict[str, Any] | None) -> bool:
     """A registry body is usable only when it says registry_status is active."""
     return isinstance(registry, dict) and registry.get("registry_status") == "active"

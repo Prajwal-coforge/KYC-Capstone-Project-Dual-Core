@@ -5,8 +5,14 @@ import socket
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from unittest.mock import patch
 
-from kyc_copilot.adapters.tools_client import MAX_ATTEMPTS, ServiceError, ToolClient
+from kyc_copilot.adapters.tools_client import (
+    MAX_ATTEMPTS,
+    ServiceError,
+    ToolClient,
+    _log_unknown_keys,
+)
 
 GOOD = {"source_id": "C1-CUSTOMER", "entity_id": "ENT-1"}
 
@@ -237,6 +243,33 @@ class ToolClientTests(unittest.TestCase):
         self.assertEqual(nxt.circuit, "closed")
         self.assertEqual(nxt.attempts, 1)
         self.assertEqual(fake.count(d11), 1)
+
+    def test_health_that_is_not_an_object_is_unhealthy(self):
+        fake = FakeService({"/health": [(200, ["ok"])]})
+        self.addCleanup(fake.stop)
+        with self.assertRaises(ServiceError) as caught:
+            ToolClient(fake.url, timeout=2).health()
+        self.assertEqual(caught.exception.error, "dependency_unhealthy")
+
+    def test_final_http_error_is_not_retried(self):
+        fake = FakeService({})
+        self.addCleanup(fake.stop)
+        client = ToolClient(fake.url, timeout=2, backoff_seconds=0)
+        with self.assertRaises(ServiceError) as caught:
+            client.health()
+        self.assertEqual(caught.exception.error, "not_found")
+        self.assertEqual(fake.count("/health"), 1)
+
+    def test_case_list_of_non_objects_is_rejected(self):
+        fake = FakeService({"/v1/cases": [(200, {"cases": ["KYC-D01"]})]})
+        self.addCleanup(fake.stop)
+        with self.assertRaises(ServiceError) as caught:
+            ToolClient(fake.url, timeout=2).list_cases()
+        self.assertEqual(caught.exception.error, "case_list_invalid")
+
+    def test_unknown_key_log_ignores_a_non_object_redaction(self):
+        with patch("kyc_copilot.adapters.tools_client.redact", return_value=["x"]):
+            _log_unknown_keys("customer", {"source_id": "C1"})
 
     def test_case_list_that_is_not_an_object_is_a_service_error(self):
         fake = FakeService({"/v1/cases": [(200, ["KYC-D01"])]})
