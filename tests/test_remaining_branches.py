@@ -284,12 +284,12 @@ class NarrativeAndCitationEdges(unittest.TestCase):
         ]
         joined = "\n".join(notes)
         self.assertIn("outside the supported scope", joined)
-        self.assertIn("could not be established", joined)
-        self.assertIn("does not state the ownership depth", joined)
-        self.assertIn("unrecognized match type", joined)
-        self.assertIn("could not be read", joined)
+        self.assertIn("could not settle on one policy", joined)
+        self.assertIn("does not say how deep the ownership goes", joined)
+        self.assertIn("match type I do not recognize", joined)
+        self.assertIn("could not read the screening response", joined)
         self.assertIn("missing from the customer or registry", joined)
-        self.assertIn("could not be read", joined)
+        self.assertIn("could not read the monthly transaction total", joined)
 
     def test_follow_up_without_a_filing_and_for_an_unknown_field(self):
         decision = _decision()
