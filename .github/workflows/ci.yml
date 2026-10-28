@@ -18,6 +18,22 @@ jobs:
   test:
     name: ruff and pytest
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: kyc
+          POSTGRES_PASSWORD: kyc
+          POSTGRES_DB: kyc
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kyc -d kyc"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      KYC_DATABASE_URL: postgresql://kyc:kyc@localhost:5432/kyc?sslmode=disable
     steps:
       - uses: actions/checkout@v4
 
@@ -39,6 +55,7 @@ jobs:
       # Full tree: architecture boundaries, ingest, rules, tools client,
       # tracing and SLO metrics, narrative, packet citations, and the
       # pipeline run of all 12 dev cases through the supplied evaluator.
+      # Live Postgres adapter tests run when KYC_DATABASE_URL is set (this job).
       - name: All tests
         run: uv run --locked python -m pytest tests
 
@@ -51,6 +68,7 @@ jobs:
       - name: Build the Compose image
         run: docker build -t kyc-capstone:ci .
 
+      # No Postgres in this job: live adapter tests skip; graded sqlite path must still pass.
       - name: Ruff and pytest inside the image
         run: |
           docker run --rm kyc-capstone:ci uv run --locked ruff check src/kyc_copilot tests
