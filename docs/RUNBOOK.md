@@ -26,9 +26,15 @@ docker compose exec dev bash
 
 ## Run the copilot
 
+Local/assessor default is SQLite (`--db .state/app.sqlite`). Compose/cloud set `KYC_DATABASE_URL` (or pass `--dsn`); that wins over `--db`. Never point `--db` at `mock.sqlite`.
+
 ```sh
 # Ingest policies/documents and review every case listed by the service
 uv run --locked python -m kyc_copilot --api-url http://127.0.0.1:8766 --out submissions/results.json
+
+# Cloud Run: only the DSN env var is required (no sqlite path)
+# KYC_DATABASE_URL=postgresql://… sslmode=require  (from secret manager)
+# uv run --locked python -m kyc_copilot --api-url "$MOCK_URL" --out submissions/results.json
 
 # Evaluate against development gold (assessors use new fixtures)
 uv run --locked python -m kyc_copilot --evaluate --report reports/dev.json
@@ -66,13 +72,19 @@ Use the same `--state` path on every operator command if non-default.
 2. Restart `serve` if needed; retry counters survive restarts — reset between independent runs.
 3. Re-run the copilot; cases with persistent tool faults escalate after 3 attempts.
 
-## Deployment (local container)
+## Deployment (local container or cloud store)
 
-See [`DOCKER.md`](../DOCKER.md) and ADR-0005. Compose runs `mock` (loopback 8766) and `dev` (shared network namespace). State lives in the `kyc-state` volume. No cloud secrets required for the graded path.
+See [`DOCKER.md`](../DOCKER.md) and ADR-0005.
+
+- **Graded / laptop path:** SQLite `--db .state/app.sqlite`. No Postgres required. No cloud secrets.
+- **Compose:** `mock` (loopback 8766, SQLite mock bank) + `postgres:16-alpine` (copilot store) + `dev` (`KYC_DATABASE_URL`).
+- **Cloud Run + Cloud SQL Postgres (or later RDS):** DSN from secret manager as `KYC_DATABASE_URL`, `sslmode=require` unless the URL already sets sslmode, least-privilege role, never `private_token` in the database. Drafts only — never create or update bank records.
+
+Diego approved PostgreSQL for the copilot knowledge store in cloud deploy (scalability/security). Scope does not mandate SQLite.
 
 ## Retention and deletion
 
-Application SQLite (`.state/app.sqlite`) stores policy/document text for citation checks and redacted tool evidence. It must **not** store `private_token` or review-log copies of full customer documents beyond ingested evidence. Delete or rebuild the app DB between assessment runs (`rm .state/app.sqlite` or re-ingest). Mock state is separate (`.state/mock.sqlite`) and is reset with `reset --confirm`. Do not commit either database.
+The copilot store (SQLite `.state/app.sqlite` or Postgres) holds policy/document text for citation checks and redacted tool evidence. It must **not** store `private_token` or review-log copies of full customer documents beyond ingested evidence. Between assessment runs: delete/rebuild `app.sqlite`, or drop/recreate the Postgres schema by restarting with a fresh volume. Mock state is separate (`.state/mock.sqlite`) and is reset with `reset --confirm`. The copilot must never open the mock file. Do not commit databases or `.env`.
 
 ## Severe failure: prompt injection in a case document (D08-class)
 
