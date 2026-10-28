@@ -7,7 +7,8 @@ from pathlib import Path
 
 from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
 from kyc_copilot.adapters.tools_client import ToolClient
-from kyc_copilot.runner.cli import draft_hash, review_cases, submit_drafts
+from kyc_copilot.observability.tracing import metrics, trace_events
+from kyc_copilot.runner.cli import draft_hash, review_cases, run_cases, submit_drafts
 from kyc_copilot.runner.cli import main as run_main
 from kyc_copilot.runner.ingest import ingest
 from tests.helpers import DEV, ROOT, MockService, load_tool
@@ -78,6 +79,22 @@ class DevSetEndToEnd(unittest.TestCase):
         }
         self.assertEqual(failing, {})
         self.assertEqual(self.report["format_errors"], [])
+
+    def test_second_pass_keeps_routes_and_stays_inside_the_latency_slo(self):
+        case_ids = [p["case_id"] for p in self.packets]
+        passes = [run_cases(case_ids, self.client, self.store) for _ in range(2)]
+        decisions = []
+        for runs in passes:
+            for run in runs:
+                case_id = run.packet["case_id"]
+                self.assertEqual(run.packet["routing"], self.by_id[case_id]["routing"])
+                decisions.extend(
+                    event for event in trace_events(run) if event["event"] == "decision"
+                )
+        summary = metrics(decisions)
+        self.assertEqual(summary["success_rate"], 1.0)
+        self.assertFalse(summary["alert"])
+        self.assertLess(summary["p95_ms"], summary["slo_ms"])
 
     def test_every_citation_is_an_exact_quote_from_a_stored_source(self):
         for p in self.packets:

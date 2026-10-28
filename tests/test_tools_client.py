@@ -6,7 +6,7 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from kyc_copilot.adapters.tools_client import MAX_ATTEMPTS, ToolClient
+from kyc_copilot.adapters.tools_client import MAX_ATTEMPTS, ServiceError, ToolClient
 
 GOOD = {"source_id": "C1-CUSTOMER", "entity_id": "ENT-1"}
 
@@ -43,8 +43,13 @@ class FakeService:
             def do_POST(self):
                 size = int(self.headers.get("Content-Length", "0"))
                 fake.requests.append(("POST", self.path))
-                body = json.loads(self.rfile.read(size))
-                self._reply(201, {"review_id": "rev_x", "status": "pending", "echo": body})
+                self.rfile.read(size)
+                steps = fake.script.get(self.path, [])
+                if steps:
+                    status, body = steps.pop(0) if len(steps) > 1 else steps[0]
+                    self._reply(status, body)
+                    return
+                self._reply(201, {"review_id": "rev_x", "status": "pending"})
 
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
@@ -88,6 +93,13 @@ class ToolClientTests(unittest.TestCase):
         self.assertEqual((r.attempts, r.error), (MAX_ATTEMPTS, "upstream_timeout"))
         self.assertEqual(fake.count(PATH), 3)
         self.assertIsNone(r.payload)
+
+    def test_server_error_other_than_503_is_retried(self):
+        fake, client = self.serve([(500, {"error": "boom"})])
+        result = client.fetch("C1", "customer")
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error, "http_500")
+        self.assertEqual(fake.count(PATH), 3)
 
     def test_not_found_is_not_retried(self):
         fake, client = self.serve([(404, {"error": "not_found"})])
@@ -205,6 +217,22 @@ class ToolClientTests(unittest.TestCase):
         self.assertEqual(nxt.circuit, "closed")
         self.assertEqual(nxt.attempts, 1)
         self.assertEqual(fake.count(d11), 1)
+
+    def test_case_list_that_is_not_an_object_is_a_service_error(self):
+        fake = FakeService({"/v1/cases": [(200, ["KYC-D01"])]})
+        self.addCleanup(fake.stop)
+        client = ToolClient(fake.url, timeout=2)
+        with self.assertRaises(ServiceError) as caught:
+            client.list_cases()
+        self.assertEqual(caught.exception.error, "invalid_response")
+
+    def test_review_response_that_is_not_an_object_is_a_service_error(self):
+        fake = FakeService({"/v1/reviews": [(200, ["rev"])]})
+        self.addCleanup(fake.stop)
+        client = ToolClient(fake.url, timeout=2)
+        with self.assertRaises(ServiceError) as caught:
+            client.submit_review("C1", {"case_id": "C1"})
+        self.assertEqual(caught.exception.error, "invalid_response")
 
 
 if __name__ == "__main__":
