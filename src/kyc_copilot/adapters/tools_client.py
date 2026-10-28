@@ -40,6 +40,7 @@ class _Circuit:
         self.probing = False
 
     def state(self, now: float, cooldown: float) -> str:
+        """closed, open, or half_open after the cooldown without an active probe."""
         if self.opened_at is None:
             return "closed"
         if now - self.opened_at >= cooldown and not self.probing:
@@ -56,10 +57,12 @@ class _Circuit:
         return state
 
     def succeed(self) -> None:
+        """Close the breaker after a successful or non-outage response."""
         self.opened_at = None
         self.probing = False
 
     def fail(self, now: float) -> None:
+        """Open the breaker after retries are exhausted."""
         self.opened_at = now
         self.probing = False
 
@@ -90,6 +93,7 @@ class ToolClient:
         self._circuits.clear()
 
     def _request(self, method: str, path: str, body: Any = None) -> Any:
+        """JSON HTTP call via urllib; map 5xx/network to retryable and 4xx to final."""
         data = None if body is None else json.dumps(body).encode("utf-8")
         req = urllib.request.Request(
             self.base_url + path,
@@ -114,6 +118,7 @@ class ToolClient:
             raise _Retryable("invalid_response") from exc
 
     def fetch(self, case_id: str, tool: str) -> ToolResult:
+        """GET one read tool with max-3 retries and a per-tool circuit breaker."""
         if tool not in TOOLS:
             raise ValueError(f"unknown tool: {tool}")
         circuit = self._circuits.setdefault(tool, _Circuit())
@@ -147,6 +152,7 @@ class ToolClient:
         )
 
     def list_cases(self) -> list[dict]:
+        """GET /v1/cases for the authoritative case-to-document mapping."""
         return self._request("GET", "/v1/cases")["cases"]
 
     def submit_review(self, case_id: str, draft: dict) -> dict:

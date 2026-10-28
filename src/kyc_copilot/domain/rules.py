@@ -126,6 +126,7 @@ _ACTIVE: ContextVar[_Scratch | None] = ContextVar("kyc_rule_scratch", default=No
 
 
 def _scratch() -> _Scratch:
+    """Scratch for the in-flight decide() run; rules must not run outside that context."""
     active = _ACTIVE.get()
     if active is None:
         raise RuntimeError("StatutoryRule.apply requires an active decide() scratch")
@@ -133,10 +134,12 @@ def _scratch() -> _Scratch:
 
 
 def _number(value: object) -> int | float | None:
+    """Accept int/float only; bool is excluded so True/False never count as amounts."""
     return value if isinstance(value, (int, float)) and not isinstance(value, bool) else None
 
 
 def _owner_names(registry: dict[str, Any] | None) -> list[str] | None:
+    """Owner names from registry; None when the tool response is missing (not an empty list)."""
     if registry is None:
         return None  # KYC-SCOPE-01: missing registry response means null, not an empty list
     owners = registry.get("owners")
@@ -146,12 +149,14 @@ def _owner_names(registry: dict[str, Any] | None) -> list[str] | None:
 
 
 def _present_text(value: object) -> str | None:
+    """Non-blank string, else None so missing fields are not treated as conflicts."""
     if isinstance(value, str) and value.strip():
         return value
     return None
 
 
 def _combine_address_checks(results: list[str]) -> str:
+    """Worst pairwise result wins: different > unknown > normalized_same > same."""
     if not results:
         return "unknown"
     if "different" in results:
@@ -168,6 +173,7 @@ class ToolAvailabilityRule(StatutoryRule):
     precedence: ClassVar[int] = 10
 
     def apply(self, evidence: CaseEvidence) -> None:
+        """Escalate when any required read tool failed after retries."""
         scratch = _scratch()
         incomplete = [f"{TOOL_LABELS.get(t, t)}_unavailable" for t in evidence.failed_tools]
         scratch.incomplete.extend(incomplete)
@@ -179,6 +185,7 @@ class CrossSourceConflictRule(StatutoryRule):
     precedence: ClassVar[int] = 11
 
     def apply(self, evidence: CaseEvidence) -> None:
+        """Escalate non-address conflicts; disputed jurisdiction blocks product policy selection."""
         scratch = _scratch()
         customer = evidence.customer
         registry = evidence.registry
@@ -217,6 +224,7 @@ class ScopeAndPolicyRule(StatutoryRule):
     precedence: ClassVar[int] = 12
 
     def apply(self, evidence: CaseEvidence) -> None:
+        """Select the single effective product policy, or escalate unsupported/ambiguous scope."""
         scratch = _scratch()
         customer = evidence.customer
         scratch.entity_type = customer.get("entity_type") if customer else None
@@ -253,6 +261,7 @@ class OwnershipDepthRule(StatutoryRule):
     precedence: ClassVar[int] = 14
 
     def apply(self, evidence: CaseEvidence) -> None:
+        """Escalate when ownership depth is unknown or deeper than one layer."""
         scratch = _scratch()
         registry = evidence.registry
         if registry is None:
@@ -269,6 +278,7 @@ class ScreeningMatchRule(StatutoryRule):
     precedence: ClassVar[int] = 16
 
     def apply(self, evidence: CaseEvidence) -> None:
+        """Escalate exact/near/unrecognized screening hits and record the PEP flag."""
         scratch = _scratch()
         screening = evidence.screening
         if screening is None:
@@ -294,6 +304,7 @@ class IdentityDocumentRule(StatutoryRule):
     precedence: ClassVar[int] = 20
 
     def apply(self, evidence: CaseEvidence) -> None:
+        """Request identity when missing, not attached, not supplied, or no holder name."""
         scratch = _scratch()
         status = (evidence.identity_status or "").strip().casefold()
         missing_holder = evidence.holder_name is None or not str(evidence.holder_name).strip()
@@ -312,6 +323,7 @@ class AddressComparisonRule(StatutoryRule):
     precedence: ClassVar[int] = 22
 
     def apply(self, evidence: CaseEvidence) -> None:
+        """Request address_explanation when present customer/registry/filing addresses disagree."""
         scratch = _scratch()
         customer = evidence.customer
         registry = evidence.registry
@@ -349,6 +361,7 @@ class EddAndPepRule(StatutoryRule):
     precedence: ClassVar[int] = 30
 
     def apply(self, evidence: CaseEvidence) -> None:
+        """Flag EDD for PEP or monthly total strictly above the selected policy threshold."""
         scratch = _scratch()
         if scratch.pep:
             scratch.edd.append("pep_indicator")
@@ -364,6 +377,7 @@ class EddAndPepRule(StatutoryRule):
 
 
 def decide(ev: CaseEvidence, find_policies: Callable[[str, str, date], list[Policy]]) -> Decision:
+    """Run registered rules in precedence order and collapse reasons into one routing decision."""
     scratch = _Scratch(find_policies=find_policies)
     token = _ACTIVE.set(scratch)
     try:

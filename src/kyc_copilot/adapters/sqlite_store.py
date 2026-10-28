@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS tool_evidence(
 
 
 def _as_date(value: date | str) -> str:
+    """Normalize date or ISO string to YYYY-MM-DD for SQLite comparisons."""
     return value.isoformat() if isinstance(value, date) else date.fromisoformat(value).isoformat()
 
 
@@ -169,6 +170,7 @@ class SqliteKnowledgeStore:
         return diff
 
     def _write(self, item: ParsedFile) -> None:
+        """Replace one source and its policy/document/chunk rows (delete then insert)."""
         s = item.source
         self.db.execute("DELETE FROM sources WHERE source_id=?", (s.source_id,))
         self.db.execute(
@@ -221,6 +223,7 @@ class SqliteKnowledgeStore:
 
     @staticmethod
     def _source(row: sqlite3.Row) -> Source:
+        """Map a sources table row into the frozen Source contract."""
         return Source(
             row["source_id"],
             row["kind"],
@@ -234,6 +237,7 @@ class SqliteKnowledgeStore:
     def find_policies(
         self, entity_type: str, jurisdiction: str, review_date: date | str
     ) -> list[Policy]:
+        """Policies effective on review_date for the entity/jurisdiction pair."""
         day = _as_date(review_date)
         rows = self.db.execute(
             "SELECT * FROM policies WHERE entity_type=? AND jurisdiction=? "
@@ -253,6 +257,7 @@ class SqliteKnowledgeStore:
         ]
 
     def all_policies(self) -> list[Policy]:
+        """Every stored product policy, ordered by source_id."""
         rows = self.db.execute("SELECT * FROM policies ORDER BY source_id").fetchall()
         return [
             Policy(
@@ -267,10 +272,12 @@ class SqliteKnowledgeStore:
         ]
 
     def get_source(self, source_id: str) -> Source | None:
+        """Return any stored source by id, or None if unknown."""
         row = self.db.execute("SELECT * FROM sources WHERE source_id=?", (source_id,)).fetchone()
         return self._source(row) if row else None
 
     def get_procedure(self, source_id: str) -> Source | None:
+        """Return a procedure/scope source only; None when missing or wrong kind."""
         row = self.db.execute(
             "SELECT * FROM sources WHERE source_id=? AND kind='procedure'",
             (source_id,),
@@ -278,6 +285,7 @@ class SqliteKnowledgeStore:
         return self._source(row) if row else None
 
     def case_documents(self, case_id: str) -> list[Source]:
+        """Documents linked to the case, intake first then by source_id."""
         rows = self.db.execute(
             "SELECT s.* FROM sources s JOIN documents d USING(source_id) "
             "WHERE d.case_id=? ORDER BY d.is_intake DESC, s.source_id",
@@ -286,6 +294,7 @@ class SqliteKnowledgeStore:
         return [self._source(r) for r in rows]
 
     def get_document(self, source_id: str) -> Document | None:
+        """Parsed document metadata for a source, or None if not a document."""
         r = self.db.execute("SELECT * FROM documents WHERE source_id=?", (source_id,)).fetchone()
         if not r:
             return None
@@ -331,6 +340,7 @@ class SqliteKnowledgeStore:
             raise
 
     def get_chunks(self, source_id: str) -> list[Chunk]:
+        """Paragraph chunks in order for citation and retrieval."""
         rows = self.db.execute(
             "SELECT * FROM chunks WHERE source_id=? ORDER BY chunk_no", (source_id,)
         ).fetchall()
@@ -347,6 +357,7 @@ class SqliteKnowledgeStore:
         ]
 
     def verify_quote(self, source_id: str, quote: str) -> bool:
+        """True only if quote is non-blank and an exact substring of the source text."""
         if not isinstance(quote, str) or not quote.strip():
             return False
         row = self.db.execute(
@@ -355,6 +366,7 @@ class SqliteKnowledgeStore:
         return bool(row) and quote in row["content"]
 
     def counts(self) -> dict[str, int]:
+        """Row totals for ingest summaries; ingested sources exclude tool evidence."""
         return {
             k: self.db.execute(q).fetchone()[0]
             for k, q in {
