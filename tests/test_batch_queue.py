@@ -201,7 +201,9 @@ class RunOnceTests(unittest.TestCase):
         self.assertIn("/out/results.json", calls[1])
         self.assertIn("/var/lib/kyc/out:/out", calls[1])
         self.assertEqual(calls[2][0:3], ["aws", "s3", "cp"])
+        self.assertEqual(calls[2][4], "s3://packets/cases/KYC-D01/results.json")
         self.assertEqual(calls[3][0:3], ["aws", "s3", "cp"])
+        self.assertEqual(calls[3][4], "s3://traces/cases/KYC-D01/trace.jsonl")
         self.assertEqual(calls[4][2], "delete-message")
         self.assertNotIn("secret", " ".join(" ".join(item) for item in calls))
 

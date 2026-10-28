@@ -134,7 +134,7 @@ def run_once(env: Mapping[str, str], run: Run = subprocess.run) -> int:
     if reviewed.returncode != 0:
         print("Review did not finish. The case stays on the queue.", file=sys.stderr)
         return 1
-    if _copy_outputs(env, region, run) != 0:
+    if _copy_outputs(message.case_id, env, region, run) != 0:
         return 1
     deleted = run(_delete_args(queue_url, region, message.receipt), check=False)
     if deleted.returncode != 0:
@@ -146,14 +146,14 @@ def run_once(env: Mapping[str, str], run: Run = subprocess.run) -> int:
     return 0
 
 
-def _copy_outputs(env: Mapping[str, str], region: str, run: Run) -> int:
+def _copy_outputs(case_id: str, env: Mapping[str, str], region: str, run: Run) -> int:
     """Copy the packet and trace after a good review. A missed copy leaves the case queued."""
     out = (env.get("KYC_OUT_DIR") or "").strip()
     packet = (env.get("KYC_PACKET_BUCKET") or "").strip()
     trace = (env.get("KYC_TRACE_BUCKET") or "").strip()
     if not out and not packet and not trace:
         return 0
-    if not (out and packet and trace):
+    if not (out and packet and trace) or not _safe_case_id(case_id):
         print("Packet copy is incomplete. The case stays on the queue.", file=sys.stderr)
         return 1
     copies = (
@@ -162,7 +162,7 @@ def _copy_outputs(env: Mapping[str, str], region: str, run: Run) -> int:
             "s3",
             "cp",
             f"{out}/results.json",
-            f"s3://{packet}/results.json",
+            f"s3://{packet}/cases/{case_id}/results.json",
             "--region",
             region,
         ],
@@ -171,7 +171,7 @@ def _copy_outputs(env: Mapping[str, str], region: str, run: Run) -> int:
             "s3",
             "cp",
             f"{out}/trace.jsonl",
-            f"s3://{trace}/trace.jsonl",
+            f"s3://{trace}/cases/{case_id}/trace.jsonl",
             "--region",
             region,
         ],
@@ -182,6 +182,10 @@ def _copy_outputs(env: Mapping[str, str], region: str, run: Run) -> int:
             print("The packet was not copied. The case stays on the queue.", file=sys.stderr)
             return 1
     return 0
+
+
+def _safe_case_id(case_id: str) -> bool:
+    return bool(case_id) and "/" not in case_id and "\\" not in case_id and ".." not in case_id
 
 
 def _receive_args(queue_url: str, region: str) -> list[str]:
