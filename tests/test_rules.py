@@ -503,6 +503,41 @@ class ThreeWayAddressAndIdentityTests(unittest.TestCase):
         self.assertEqual(d.routing, "request_information")
         self.assertIn("identity_document", d.missing_information)
 
+    def test_non_finite_monthly_total_escalates_as_unreadable(self):
+        for bad in (float("nan"), float("inf"), float("-inf")):
+            decision = self.route(
+                evidence(
+                    transactions={
+                        "source_id": "C1-TRANSACTIONS",
+                        "monthly_total": bad,
+                        "currency": "XCR",
+                    }
+                )
+            )
+            self.assertEqual(decision.routing, "escalate", bad)
+            self.assertIn("transactions_unreadable", decision.reasons)
+
+    def test_address_helpers_share_one_token_map(self):
+        from kyc_copilot.contracts import address as contracts_address
+        from kyc_copilot.domain import rules as domain_rules
+
+        self.assertEqual(
+            dict(contracts_address._ADDRESS_TOKEN_MAP),
+            dict(domain_rules._ADDRESS_TOKEN_MAP),
+        )
+        samples = (
+            ("100 Orchard St", "100 Orchard Street"),
+            ("10 N Ave", "10 North Avenue"),
+            (None, "100 Orchard Walk"),
+            ("", "100 Orchard Walk"),
+        )
+        for left, right in samples:
+            self.assertEqual(
+                contracts_address.compare_addresses(left, right),
+                domain_rules.compare_addresses(left, right),
+                (left, right),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
