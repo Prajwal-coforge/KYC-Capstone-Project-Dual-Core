@@ -21,7 +21,7 @@ from kyc_copilot.ingestion.parsing import (
 from kyc_copilot.narrative.narrator import _address_difference_note
 from kyc_copilot.runner.cli import _business_key
 from kyc_copilot.runner.ingest import ingest
-from kyc_copilot.runner.pipeline import _document_faults
+from kyc_copilot.runner.pipeline import _document_faults, _heading_faults
 from tests.helpers import DEV
 from tests.test_rules import evidence
 
@@ -103,6 +103,26 @@ class DocumentFaultBranchTests(unittest.TestCase):
             ]
         )
         self.assertEqual(faults["C1"], ["unknown_document"])
+
+    def test_a_heading_must_name_its_own_document_type(self) -> None:
+        intake = _document("C1-INTAKE", "intake")
+        corporate = _document("C1-CORPORATE", "corporate")
+        memo = _document("C1-MEMO", "memo")
+        blank = _document("C1-IDENTITY", "identity", empty=True)
+        self.assertEqual(
+            _heading_faults(
+                [
+                    (intake, "Periodic review intake\r"),
+                    (corporate, "Corporate filing attachment"),
+                    (memo, None),
+                    (blank, None),
+                ]
+            ),
+            (),
+        )
+        for title in ("Identity attachment status", "Corporate identity filing", None):
+            with self.subTest(title=title):
+                self.assertEqual(_heading_faults([(corporate, title)]), ("heading_mismatch",))
 
 
 class ParserBranchTests(unittest.TestCase):
