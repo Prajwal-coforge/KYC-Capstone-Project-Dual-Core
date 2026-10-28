@@ -4,7 +4,7 @@
 set -uo pipefail
 exec >> /var/log/kyc-drain.log 2>&1
 REGION=us-east-1
-IMAGE=104005345381.dkr.ecr.us-east-1.amazonaws.com/kyc-copilot:aaab412
+IMAGE=104005345381.dkr.ecr.us-east-1.amazonaws.com/kyc-copilot:d6d3a04
 systemctl start docker
 aws ecr get-login-password --region "$REGION" \
   | docker login --username AWS --password-stdin 104005345381.dkr.ecr.us-east-1.amazonaws.com
