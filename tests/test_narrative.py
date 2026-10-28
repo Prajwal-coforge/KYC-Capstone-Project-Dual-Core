@@ -171,6 +171,84 @@ class DraftCustomerRequestGateTests(unittest.TestCase):
         self.assertIn("incomplete", note.lower())
         self.assertIn("company registry", note)
 
+    def test_each_conflict_shows_both_values_and_chooses_neither(self):
+        ev = _evidence(
+            customer={**_evidence().customer, "birth_year": 1990, "company_name": "Acme"},
+            filing_jurisdiction="Birch",
+            entity_ref="ENT-9",
+            holder_name="Ari Vael",
+            declared_owner="Bo Lin",
+            birth_year=1985,
+            company_name="Acme Ltd",
+        )
+        reasons = [
+            "jurisdiction_conflict",
+            "entity_ref_conflict",
+            "company_name_conflict",
+            "owner_name_conflict",
+            "birth_year_conflict",
+        ]
+        note = self.narrator.write(_decision(routing="escalate", reasons=reasons), ev)
+        for text in (
+            "jurisdiction 'Alder' but the corporate filing gives 'Birch'",
+            "entity reference 'ENT-9' does not match the customer record entity 'ENT-1'",
+            "names the company 'Acme' but the corporate filing names it 'Acme Ltd'",
+            "identity document holder 'Ari Vael' is not among the registry owners ('Ari Vale')",
+            "declared owner in the corporate filing 'Bo Lin' is not among",
+            "birth year 1990 but the identity document gives 1985",
+        ):
+            self.assertIn(text, note)
+
+    def test_registry_and_customer_gaps_are_named(self):
+        note = self.narrator.write(
+            _decision(
+                routing="escalate",
+                reasons=[
+                    "registry_not_active",
+                    "owners_not_established",
+                    "customer_fields_missing",
+                ],
+            ),
+            _evidence(registry={**_evidence().registry, "registry_status": "dissolved"}),
+        )
+        self.assertIn("registry status is 'dissolved', not active", note)
+        self.assertIn("did not supply usable owner names", note)
+        self.assertIn("could not select a policy", note)
+
+    def test_document_faults_are_named(self):
+        note = self.narrator.write(
+            _decision(
+                routing="escalate",
+                reasons=["missing_corporate", "duplicate_identity", "heading_mismatch"],
+            ),
+            _evidence(),
+        )
+        self.assertIn("The corporate filing is missing from the case.", note)
+        self.assertIn("more than one identity document", note)
+        self.assertIn("heading does not match its document type", note)
+        self.assertIn("A person needs to check the case documents.", note)
+
+    def test_a_foreign_currency_total_is_not_compared_as_xcr(self):
+        note = self.narrator.write(
+            _decision(routing="escalate", reasons=["currency_mismatch"]),
+            _evidence(
+                transactions={"source_id": "C1-TX", "monthly_total": 12000, "currency": "USD"}
+            ),
+        )
+        self.assertIn("'USD', not XCR", note)
+        self.assertNotIn("12000 XCR", note)
+
+    def test_formatting_only_differences_list_each_address_once(self):
+        note = self.narrator.write(
+            _decision(address_check="normalized_same"),
+            _evidence(filing_address="100 Orchard Walk, Alder."),
+        )
+        self.assertIn(
+            "The registered addresses '100 Orchard Walk, Alder', '100 Orchard Walk, Alder.' "
+            "differ only in formatting",
+            note,
+        )
+
     def test_enhanced_due_diligence_has_no_draft_customer_request(self):
         note = self.narrator.write(
             _decision(

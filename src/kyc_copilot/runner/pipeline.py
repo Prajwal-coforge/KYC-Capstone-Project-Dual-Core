@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import time
 
 from kyc_copilot.adapters.redaction import canonical_json, redact
@@ -42,6 +43,17 @@ def _document_faults(docs: list[Document]) -> tuple[str, ...]:
     return tuple(codes + extra)
 
 
+def _heading_faults(headed: list[tuple[Document, str | None]]) -> tuple[str, ...]:
+    """A known document whose heading names no type, or another type, is not trusted."""
+    for doc, title in headed:
+        if doc.doc_type not in _DOC_KINDS or doc.empty:
+            continue
+        named = set(re.findall(r"[a-z]+", (title or "").casefold())) & set(_DOC_KINDS)
+        if named != {doc.doc_type}:
+            return ("heading_mismatch",)
+    return ()
+
+
 def gather_evidence(
     case_id: str, client: ToolClient, store: KnowledgeStore
 ) -> tuple[CaseEvidence, dict[str, ToolResult], str | None]:
@@ -52,11 +64,13 @@ def gather_evidence(
     corporate = None
     identity = None
     docs = []
+    headed = []
     for source in store.case_documents(case_id):
         doc = store.get_document(source.source_id)
         if doc is None:
             continue
         docs.append(doc)
+        headed.append((doc, source.title))
         if doc.is_intake and intake is None:
             intake = doc
         if doc.doc_type == "corporate" and corporate is None:
@@ -99,7 +113,7 @@ def gather_evidence(
         document_reference=identity.document_reference if identity else None,
         identity_not_supplied=identity.identity_not_supplied if identity else False,
         company_name=corporate.company_name if corporate else None,
-        document_faults=_document_faults(docs),
+        document_faults=_document_faults(docs) + _heading_faults(headed),
     )
     return evidence, results, intake.source_id if intake else None
 
