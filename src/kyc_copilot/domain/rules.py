@@ -10,6 +10,7 @@ Missing-information fields are kept even when a higher rule wins.
 
 from __future__ import annotations
 
+import math
 import re
 import unicodedata
 from collections.abc import Callable
@@ -134,8 +135,12 @@ def _scratch() -> _Scratch:
 
 
 def _number(value: object) -> int | float | None:
-    """Accept int/float only; bool is excluded so True/False never count as amounts."""
-    return value if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+    """Accept a finite int or float. Bool and non-finite floats never count as amounts."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    return value
 
 
 def _owner_names(registry: dict[str, Any] | None) -> list[str] | None:
