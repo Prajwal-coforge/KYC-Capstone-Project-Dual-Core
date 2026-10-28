@@ -24,6 +24,86 @@ TOOL_NAMES = {
 }
 
 
+DOCUMENT_LABELS = {
+    "intake": "intake document",
+    "corporate": "corporate filing",
+    "identity": "identity document",
+}
+DOCUMENT_FAULTS = {
+    **{f"missing_{k}": f"The {v} is missing from the case." for k, v in DOCUMENT_LABELS.items()},
+    **{f"duplicate_{k}": f"The case has more than one {v}." for k, v in DOCUMENT_LABELS.items()},
+    "unknown_document": "The case includes a document of a type I do not recognize.",
+    "empty_document": "A case document is empty.",
+    "review_date_unreadable": "The intake review date is not a valid calendar date.",
+    "label_conflict": "A case document gives two different values for the same field.",
+    "heading_mismatch": "A case document's heading does not match its document type.",
+}
+
+
+def _field(record: dict | None, key: str) -> object:
+    return record.get(key) if record else None
+
+
+def _conflict_notes(reasons: set[str], d: Decision, ev: CaseEvidence) -> list[str]:
+    """Each contradicting value with its source. Neither value is chosen (ADR-0004)."""
+    notes = []
+    if "jurisdiction_conflict" in reasons:
+        notes.append(
+            f"The customer record gives jurisdiction '{_field(ev.customer, 'jurisdiction')}' "
+            f"but the corporate filing gives '{ev.filing_jurisdiction}'. I used neither to "
+            "choose a product policy."
+        )
+    if "entity_ref_conflict" in reasons:
+        notes.append(
+            f"The intake entity reference '{ev.entity_ref}' does not match the customer record "
+            f"entity '{_field(ev.customer, 'entity_id')}'. I have not chosen between them."
+        )
+    if "company_name_conflict" in reasons:
+        notes.append(
+            f"The customer record names the company '{_field(ev.customer, 'company_name')}' "
+            f"but the corporate filing names it '{ev.company_name}'."
+        )
+    if "owner_name_conflict" in reasons:
+        owners = d.facts.get("owner_names") or []
+        listed = ", ".join(f"'{o}'" for o in owners)
+        for label, name in (
+            ("identity document holder", ev.holder_name),
+            ("declared owner in the corporate filing", ev.declared_owner),
+        ):
+            if _supplied(name) and name not in owners:
+                notes.append(
+                    f"The {label} '{name}' is not among the registry owners ({listed}). "
+                    "I am not treating them as the same person."
+                )
+    if "birth_year_conflict" in reasons:
+        notes.append(
+            f"The customer record gives birth year {_field(ev.customer, 'birth_year')} but the "
+            f"identity document gives {ev.birth_year}."
+        )
+    if "registry_not_active" in reasons:
+        notes.append(
+            f"The registry status is '{_field(ev.registry, 'registry_status')}', not active, "
+            "so I did not use its owners or address."
+        )
+    if "owners_not_established" in reasons:
+        notes.append("The registry did not supply usable owner names, so owner_names is null.")
+    if "customer_fields_missing" in reasons:
+        notes.append(
+            "The customer record does not give both an entity type and a jurisdiction, "
+            "so I could not select a policy."
+        )
+    if "currency_mismatch" in reasons:
+        notes.append(
+            "The transaction summary is in "
+            f"'{_field(ev.transactions, 'currency')}', not XCR, so I did not compare it "
+            "with the policy threshold."
+        )
+    faults = [DOCUMENT_FAULTS[r] for r in d.reasons if r in DOCUMENT_FAULTS]
+    if faults:
+        notes.append(" ".join(faults) + " A person needs to check the case documents.")
+    return notes
+
+
 def _supplied(value: object) -> str | None:
     if isinstance(value, str) and value.strip():
         return value.strip()
@@ -98,6 +178,7 @@ class TemplateNarrator:
                 "so the review is incomplete and I have not cleared anything that depends on it."
             )
         reasons = set(d.reasons)
+        findings += _conflict_notes(reasons, d, ev)
         if "unsupported_scope" in reasons:
             findings.append(
                 f"{d.facts['entity_type']} in {d.facts['jurisdiction']} is outside the "
@@ -149,14 +230,13 @@ class TemplateNarrator:
         if d.address_check == "different":
             findings.append(_address_difference_note(customer_addr, registry_addr, filing_addr))
         elif d.address_check == "normalized_same":
+            present = [
+                a for a in (customer_addr, registry_addr, filing_addr) if _supplied(a) is not None
+            ]
             findings.append(
-                f"The customer record address '{customer_addr}' and registry address "
-                f"'{registry_addr}' differ only in formatting and were treated as the same."
-                + (
-                    f" The corporate filing address '{filing_addr}' was included in that check."
-                    if isinstance(filing_addr, str) and filing_addr.strip()
-                    else ""
-                )
+                "The registered addresses "
+                + ", ".join(f"'{a}'" for a in dict.fromkeys(present))
+                + " differ only in formatting and were treated as the same."
             )
         elif "address_mismatch" in reasons:
             findings.append("A registered address is missing from the customer or registry record.")
@@ -169,7 +249,11 @@ class TemplateNarrator:
             )
         if "transactions_unreadable" in reasons:
             findings.append("I could not read the monthly transaction total.")
-        if d.monthly_total is not None and d.policy is not None:
+        if (
+            d.monthly_total is not None
+            and d.policy is not None
+            and "currency_mismatch" not in reasons
+        ):
             relation = "exceeds" if d.monthly_total > d.policy.edd_threshold else "does not exceed"
             findings.append(
                 f"The monthly total of {d.monthly_total} XCR {relation} "
