@@ -1,1 +1,1 @@
-"""Adapters: HTTP, SQLite, redaction re-exports. Contracts + observability only."""
+"""Adapters: HTTP, sqlite/postgres stores, redaction. Contracts + observability."""

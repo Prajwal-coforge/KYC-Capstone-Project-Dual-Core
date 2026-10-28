@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from datetime import date
 from typing import ClassVar, Protocol, runtime_checkable
 
-from .models import CaseEvidence, Chunk, Decision, Document, Policy, Source
+from .models import CaseEvidence, Chunk, Decision, Document, ParsedFile, Policy, Source
 
 
 class KnowledgeStore(Protocol):
@@ -30,6 +31,26 @@ class KnowledgeStore(Protocol):
 
     def verify_quote(self, source_id: str, quote: str) -> bool:
         """True only if quote is non-blank and an exact substring of the source text."""
+
+    def replace_all(
+        self, parsed: Iterable[ParsedFile], meta: dict[str, str]
+    ) -> dict[str, list[str]]:
+        """Make the store mirror `parsed` exactly, in one transaction."""
+
+    def save_tool_evidence(self, case_id: str, tool: str, source_id: str, content: str) -> None:
+        """Store already-redacted tool JSON under source_id; never overwrite ingested ids."""
+
+    def counts(self) -> dict[str, int]:
+        """Row totals for ingest summaries."""
+
+    def close(self) -> None:
+        """Release the underlying connection."""
+
+    def __enter__(self) -> KnowledgeStore:
+        """Return self for `with open_knowledge_store(...) as store`."""
+
+    def __exit__(self, *exc: object) -> None:
+        """Close on context exit."""
 
 
 class Narrator(Protocol):

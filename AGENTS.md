@@ -14,11 +14,12 @@ These rules live on **`main`**. Team planning and task distribution live on bran
 
 ## Dependencies (approved exception)
 
-Runtime / contracts may use **Pydantic v2**. Dev tooling may use **pytest** and **ruff**. Still prefer stdlib for I/O (`urllib`, `sqlite3`). Do **not** add `requests` or `httpx` unless a human explicitly expands this list.
+Runtime / contracts may use **Pydantic v2**. Adapters may use **psycopg v3** (binary extra) for the optional Postgres knowledge store. Dev tooling may use **pytest** and **ruff**. Still prefer stdlib for I/O (`urllib`, `sqlite3`). Do **not** add `requests`, `httpx`, SQLAlchemy, or asyncpg unless a human explicitly expands this list.
 
 | Allowed | Role |
 |---|---|
 | `pydantic` | Frozen boundary models / schema validation in `contracts/` |
+| `psycopg[binary]` | Optional Postgres copilot store (`KYC_DATABASE_URL` / `--dsn`) |
 | `pytest` | Test runner (unittest-style tests remain valid under pytest) |
 | `ruff` | Lint + format |
 
@@ -29,7 +30,7 @@ Runtime / contracts may use **Pydantic v2**. Dev tooling may use **pytest** and 
 | `contracts/` | stdlib + `pydantic` | network, files, LLM, other layers |
 | `domain/` | `contracts` | network, files, clock, model |
 | `ingestion/` | `contracts` | network, model |
-| `adapters/` | `contracts`, traces | domain rules |
+| `adapters/` | `contracts`, traces, `psycopg` (postgres store only) | domain rules |
 | `narrative/` | `contracts` only | raw documents, mock server |
 | `observability/` | `contracts` | domain rules, network |
 | `runner/` | all of the above | — |

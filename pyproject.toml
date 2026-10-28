@@ -5,6 +5,7 @@ description = "Fictional Associate FDE capstone simulator and fixtures"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "pydantic>=2.10,<3",
+    "psycopg[binary]>=3.2,<4",
 ]
 
 [dependency-groups]
