@@ -1,9 +1,11 @@
 """End to end against the supplied mock: tools -> rules -> cited packet -> supplied evaluator."""
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
 from kyc_copilot.adapters.tools_client import ToolClient
@@ -217,7 +219,8 @@ class ReviewFlowAndCli(unittest.TestCase):
         self.assertEqual(len(requested), 1)
 
     def test_cli_refuses_the_mock_state_file(self):
-        with self.assertRaises(SystemExit):
+        env = {k: v for k, v in os.environ.items() if k != "KYC_DATABASE_URL"}
+        with patch("kyc_copilot.runner.cli.os.environ", env), self.assertRaises(SystemExit):
             run_main(
                 [
                     "--api-url",

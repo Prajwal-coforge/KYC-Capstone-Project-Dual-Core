@@ -1,4 +1,4 @@
-"""Ingest policies and case documents into the SQLite store.
+"""Ingest policies and case documents into the copilot knowledge store.
 
 Network (GET /v1/cases) stays in the runner; pure ingest + PolicyManifestGuard live in
 `kyc_copilot.ingestion`. Do not point this at dataset.json.
@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
 
-from kyc_copilot.adapters.sqlite_store import SCHEMA_VERSION, SqliteKnowledgeStore
+from kyc_copilot.adapters.sqlite_store import SCHEMA_VERSION
+from kyc_copilot.adapters.store_factory import open_knowledge_store, resolve_store_target
+from kyc_copilot.contracts.interfaces import KnowledgeStore
 from kyc_copilot.contracts.models import ParsedFile
 from kyc_copilot.ingestion import (
     apply_case_links,
@@ -30,7 +33,6 @@ __all__ = [
     "IngestError",
     "ParsedFile",
     "SCHEMA_VERSION",
-    "SqliteKnowledgeStore",
     "apply_case_links",
     "discover",
     "fetch_case_links",
@@ -63,7 +65,7 @@ def fetch_case_links(api_url: str, timeout: float = 5.0) -> dict[str, dict]:
     }
 
 
-def ingest(data_dir: Path, store: SqliteKnowledgeStore, api_url: str | None = None) -> dict:
+def ingest(data_dir: Path, store: KnowledgeStore, api_url: str | None = None) -> dict:
     case_links = None
     extra_warnings: list[str] = []
     if api_url:
@@ -96,14 +98,22 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--data", type=Path, default=ROOT / "data" / "dev")
     p.add_argument("--db", type=Path, default=ROOT / ".state" / "app.sqlite")
     p.add_argument(
+        "--dsn",
+        default=None,
+        help="Postgres DSN (overrides --db). Else KYC_DATABASE_URL.",
+    )
+    p.add_argument(
         "--api-url",
         help="optional mock service URL, used only to map documents to cases",
     )
     a = p.parse_args(argv)
-    if a.db.name == "mock.sqlite":
-        sys.exit("Refusing to use the mock service's state file; choose another --db path.")
     try:
-        with SqliteKnowledgeStore(a.db) as store:
+        target = resolve_store_target(db=str(a.db), dsn=a.dsn, env=os.environ)
+        store_cm = open_knowledge_store(target)
+    except ValueError as exc:
+        sys.exit(str(exc))
+    try:
+        with store_cm as store:
             report = ingest(a.data, store, a.api_url)
     except (IngestError, OSError) as exc:
         sys.exit(f"Ingestion failed, nothing stored: {exc}")

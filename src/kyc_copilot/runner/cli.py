@@ -13,11 +13,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
-from kyc_copilot.adapters.sqlite_store import SqliteKnowledgeStore
+from kyc_copilot.adapters.store_factory import open_knowledge_store, resolve_store_target
 from kyc_copilot.adapters.tools_client import ServiceError, ToolClient
+from kyc_copilot.contracts.interfaces import KnowledgeStore
 from kyc_copilot.contracts.models import CaseRun
 from kyc_copilot.ingestion.parsing import IngestError
 from kyc_copilot.observability.tracing import JsonlTrace, metrics, trace_events
@@ -25,15 +27,11 @@ from kyc_copilot.runner.ingest import ROOT, ingest
 from kyc_copilot.runner.pipeline import review_case
 
 
-def review_cases(
-    case_ids: list[str], client: ToolClient, store: SqliteKnowledgeStore
-) -> list[dict]:
+def review_cases(case_ids: list[str], client: ToolClient, store: KnowledgeStore) -> list[dict]:
     return [run.packet for run in run_cases(case_ids, client, store)]
 
 
-def run_cases(
-    case_ids: list[str], client: ToolClient, store: SqliteKnowledgeStore
-) -> list[CaseRun]:
+def run_cases(case_ids: list[str], client: ToolClient, store: KnowledgeStore) -> list[CaseRun]:
     # One packet per requested case ID, even if it is requested twice.
     return [review_case(cid, client, store) for cid in dict.fromkeys(case_ids)]
 
@@ -124,6 +122,11 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--api-url", default="http://127.0.0.1:8766")
     p.add_argument("--data", type=Path, default=ROOT / "data" / "dev")
     p.add_argument("--db", type=Path, default=ROOT / ".state" / "app.sqlite")
+    p.add_argument(
+        "--dsn",
+        default=None,
+        help="Postgres DSN (overrides --db). Else KYC_DATABASE_URL. Local default remains --db.",
+    )
     p.add_argument("--out", type=Path, default=ROOT / "submissions" / "results.json")
     p.add_argument(
         "--cases",
@@ -144,11 +147,14 @@ def main(argv: list[str] | None = None) -> None:
         ),
     )
     a = p.parse_args(argv)
-    if a.db.name == "mock.sqlite":
-        sys.exit("Refusing to use the mock service's state file; choose another --db path.")
+    try:
+        target = resolve_store_target(db=str(a.db), dsn=a.dsn, env=os.environ)
+        store_cm = open_knowledge_store(target)
+    except ValueError as exc:
+        sys.exit(str(exc))
 
     client = ToolClient(a.api_url)
-    with SqliteKnowledgeStore(a.db) as store:
+    with store_cm as store:
         try:
             ingest(a.data, store, a.api_url)
             case_ids = a.cases or [c["case_id"] for c in client.list_cases()]
