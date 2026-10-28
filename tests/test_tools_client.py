@@ -89,6 +89,13 @@ class ToolClientTests(unittest.TestCase):
         self.assertEqual(fake.count(PATH), 3)
         self.assertIsNone(r.payload)
 
+    def test_server_error_other_than_503_is_retried(self):
+        fake, client = self.serve([(500, {"error": "boom"})])
+        result = client.fetch("C1", "customer")
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error, "http_500")
+        self.assertEqual(fake.count(PATH), 3)
+
     def test_not_found_is_not_retried(self):
         fake, client = self.serve([(404, {"error": "not_found"})])
         r = client.fetch("C1", "customer")
