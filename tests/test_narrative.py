@@ -115,6 +115,61 @@ class DraftCustomerRequestGateTests(unittest.TestCase):
         self.assertNotIn("DRAFT customer request:", note)
         self.assertIn("complete_review", note)
         self.assertIn("pep_indicator false", note)
+        self.assertIn("I drafted this note for ENT-1", note)
+        self.assertIn("I have not approved or rejected the customer", note)
+        self.assertNotIn("Findings:", note)
+        self.assertNotIn("Limits:", note)
+
+    def test_a_quiet_case_says_there_is_nothing_further(self):
+        note = self.narrator.write(
+            _decision(routing="escalate", monthly_total=None, reasons=[]),
+            _evidence(screening=None, transactions=None),
+        )
+        self.assertIn("nothing further to add", note)
+        self.assertNotIn("pep_indicator", note)
+
+    def test_unreadable_total_is_said_in_plain_language(self):
+        note = self.narrator.write(
+            _decision(routing="escalate", reasons=["transactions_unreadable"], monthly_total=None),
+            _evidence(),
+        )
+        self.assertIn("I could not read the monthly transaction total", note)
+
+    def test_exact_match_asks_for_a_specialist(self):
+        note = self.narrator.write(
+            _decision(
+                routing="escalate",
+                reasons=["screening_exact_match"],
+                screening_matches=[
+                    {"candidate_name": "Ari Vale", "match_type": "exact", "list": "L"}
+                ],
+            ),
+            _evidence(),
+        )
+        self.assertIn("exact match on list entry 'Ari Vale'", note)
+        self.assertIn("does not establish guilt", note)
+
+    def test_near_match_stays_an_unresolved_candidate(self):
+        note = self.narrator.write(
+            _decision(
+                routing="escalate",
+                reasons=["screening_near_match"],
+                screening_matches=[
+                    {"candidate_name": "Ari Vael", "match_type": "near", "list": "L"}
+                ],
+            ),
+            _evidence(),
+        )
+        self.assertIn("unresolved identity candidate", note)
+        self.assertNotIn("confirmed match", note)
+
+    def test_registry_outage_says_the_review_is_incomplete(self):
+        note = self.narrator.write(
+            _decision(routing="escalate", incomplete_reasons=["registry_unavailable"]),
+            _evidence(failed_tools=("registry",), registry=None),
+        )
+        self.assertIn("incomplete", note.lower())
+        self.assertIn("company registry", note)
 
     def test_enhanced_due_diligence_has_no_draft_customer_request(self):
         note = self.narrator.write(

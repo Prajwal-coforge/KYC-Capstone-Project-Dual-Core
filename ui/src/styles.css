@@ -1,0 +1,187 @@
+:root {
+  color: #1c2430;
+  background: #f4f5f2;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  line-height: 1.45;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: #fff;
+  border: 1px solid #c9cfc8;
+  border-radius: 4px;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: #1f6f6a;
+}
+
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #5e6a78;
+  font-size: 0.85rem;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+h1 {
+  margin: 0.15rem 0;
+  font-size: 1.7rem;
+}
+
+h2 {
+  margin: 0.2rem 0 0.3rem;
+}
+
+h3 {
+  margin: 1.4rem 0 0.4rem;
+  font-size: 0.95rem;
+}
+
+.lede,
+.hint,
+.meta,
+.status {
+  color: #5e6a78;
+}
+
+.lede {
+  margin: 0;
+  max-width: 40rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.cases {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.case {
+  width: 100%;
+  text-align: left;
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.55rem 0.7rem;
+}
+
+.case.is-selected {
+  border-color: #1f6f6a;
+  background: #fff;
+}
+
+.case-id {
+  font-weight: 600;
+}
+
+.route {
+  color: #5e6a78;
+  font-size: 0.85rem;
+}
+
+.route-escalate,
+.route-request_information {
+  color: #8a4b12;
+}
+
+.route-enhanced_due_diligence {
+  color: #1f4e8a;
+}
+
+.draft {
+  background: #fff;
+  border: 1px solid #d9ded8;
+  border-radius: 6px;
+  padding: 1.1rem 1.25rem 1.5rem;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.7rem 1rem;
+  margin: 0;
+}
+
+.facts div {
+  margin: 0;
+}
+
+dt {
+  color: #5e6a78;
+  font-size: 0.8rem;
+}
+
+dd {
+  margin: 0.1rem 0 0;
+}
+
+.question {
+  margin: 0.4rem 0;
+}
+
+.note {
+  margin: 0;
+  max-width: 42rem;
+  white-space: pre-wrap;
+  font: inherit;
+}
+
+blockquote {
+  margin: 0.6rem 0;
+  padding: 0.4rem 0 0.4rem 0.8rem;
+  border-left: 3px solid #d9ded8;
+}
+
+blockquote p {
+  margin: 0;
+}
+
+blockquote footer {
+  margin-top: 0.25rem;
+  color: #5e6a78;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 800px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
