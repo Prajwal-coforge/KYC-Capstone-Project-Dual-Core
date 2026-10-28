@@ -139,6 +139,21 @@ class CliStoreSelectionTests(unittest.TestCase):
         opener.assert_called_once()
         self.assertEqual(opener.call_args[0][0], "postgresql://kyc:kyc@localhost/kyc")
 
+    def test_a_failed_store_open_writes_nothing_else(self) -> None:
+        env = {**os.environ, "KYC_DATABASE_URL": "postgresql://kyc:secret@db.example/kyc"}
+        with (
+            patch("kyc_copilot.runner.cli.os.environ", env),
+            patch(
+                "kyc_copilot.runner.cli.open_knowledge_store",
+                side_effect=OSError("down"),
+            ),
+            self.assertRaises(SystemExit) as caught,
+        ):
+            run_cli(["--db", str(Path(self.tmp.name) / "fallback.sqlite"), "--out", self.out])
+        self.assertIn("Nothing was written to another database", str(caught.exception))
+        self.assertNotIn("secret", str(caught.exception))
+        self.assertFalse((Path(self.tmp.name) / "fallback.sqlite").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

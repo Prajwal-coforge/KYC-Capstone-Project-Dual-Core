@@ -1,5 +1,8 @@
 .git
 .venv/
+ui/
+.coverage
+.DS_Store
 .state/
 __pycache__/
 # Retired package. Application code is src/kyc_copilot.
