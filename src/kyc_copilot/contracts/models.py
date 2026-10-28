@@ -53,6 +53,10 @@ class Document:
     birth_year: int | None = None
     document_reference: str | None = None
     identity_not_supplied: bool = False
+    company_name: str | None = None
+    label_conflicts: tuple[str, ...] = ()
+    empty: bool = False
+    review_date_unreadable: bool = False
 
 
 @dataclass(config=_FROZEN)
@@ -83,6 +87,7 @@ class ToolResult:
     error: str | None = None
     seconds: float = 0.0
     circuit: str = "closed"  # closed | open | half_open
+    attempt_log: tuple[tuple[int, str], ...] = ()
 
     @property
     def source_id(self) -> str | None:
@@ -107,7 +112,10 @@ class CaseEvidence:
     filing_address: str | None = None
     holder_name: str | None = None
     birth_year: int | None = None
+    document_reference: str | None = None
     identity_not_supplied: bool = False
+    company_name: str | None = None
+    document_faults: tuple[str, ...] = ()
 
 
 @dataclass(config=_FROZEN)

@@ -19,18 +19,23 @@ WINDOW = 20
 def trace_events(run: CaseRun) -> list[dict]:
     """Tool-call lines, then the decision line, for one case."""
     case_id = run.packet["case_id"]
-    events = [
-        {
-            "event": "tool_call",
-            "case_id": case_id,
-            "tool": tool,
-            "attempt": result.attempts,
-            "status": "ok" if result.ok else (result.error or "error"),
-            "latency_ms": round(result.seconds * 1000, 1),
-            "circuit": result.circuit,
-        }
-        for tool, result in run.tool_results.items()
-    ]
+    events = []
+    for tool, result in run.tool_results.items():
+        rows = result.attempt_log or (
+            (result.attempts, "ok" if result.ok else (result.error or "error")),
+        )
+        events.extend(
+            {
+                "event": "tool_call",
+                "case_id": case_id,
+                "tool": tool,
+                "attempt": attempt,
+                "status": status,
+                "latency_ms": round(result.seconds * 1000, 1),
+                "circuit": result.circuit,
+            }
+            for attempt, status in rows
+        )
     decision = run.decision
     events.append(
         {

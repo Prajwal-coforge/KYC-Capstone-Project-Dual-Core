@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Iterable
 from datetime import UTC, date, datetime
 from urllib.parse import parse_qs, urlparse, urlunparse
@@ -54,7 +55,11 @@ CREATE TABLE IF NOT EXISTS documents(
   holder_name TEXT,
   birth_year INTEGER,
   document_reference TEXT,
-  identity_not_supplied INTEGER NOT NULL DEFAULT 0
+  identity_not_supplied INTEGER NOT NULL DEFAULT 0,
+  company_name TEXT,
+  label_conflicts TEXT NOT NULL DEFAULT '[]',
+  empty INTEGER NOT NULL DEFAULT 0,
+  review_date_unreadable INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_documents_case ON documents(case_id);
 CREATE TABLE IF NOT EXISTS chunks(
@@ -211,7 +216,7 @@ class PostgresKnowledgeStore:
             d = item.document
             self.conn.execute(
                 "INSERT INTO documents VALUES "
-                "(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                "(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 (
                     d.source_id,
                     d.case_id,
@@ -227,6 +232,10 @@ class PostgresKnowledgeStore:
                     d.birth_year,
                     d.document_reference,
                     int(d.identity_not_supplied),
+                    d.company_name,
+                    json.dumps(list(d.label_conflicts)),
+                    int(d.empty),
+                    int(d.review_date_unreadable),
                 ),
             )
         for c in item.chunks:
@@ -310,6 +319,10 @@ class PostgresKnowledgeStore:
             r["birth_year"],
             r["document_reference"],
             bool(r["identity_not_supplied"]),
+            r["company_name"],
+            tuple(json.loads(r["label_conflicts"] or "[]")),
+            bool(r["empty"]),
+            bool(r["review_date_unreadable"]),
         )
 
     def save_tool_evidence(self, case_id: str, tool: str, source_id: str, content: str) -> None:

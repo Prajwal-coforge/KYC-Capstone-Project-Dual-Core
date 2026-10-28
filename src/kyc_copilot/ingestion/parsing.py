@@ -31,10 +31,11 @@ POLICY_FIELDS = (
     "effective through",
     "edd monthly threshold",
 )
-DOCUMENT_FIELDS = ("review date", "entity reference", "identity document")
+DOCUMENT_FIELDS = ("review date", "entity reference", "identity document", "company name")
 IDENTITY_FIELDS = ("name", "birth year", "document reference")
 KNOWN_DOC_SUFFIXES = frozenset({"INTAKE", "CORPORATE", "IDENTITY"})
 NOT_SUPPLIED_MARKERS = ("not supplied", "was not included")
+PROSE_COMPANY_RE = re.compile(r"^(.+?) manufactures\b", re.MULTILINE)
 
 
 class IngestError(ValueError):
@@ -46,14 +47,36 @@ def read_exact(path: Path) -> str:
     return path.read_bytes().decode("utf-8")
 
 
-def _fields(content: str, wanted: tuple[str, ...]) -> dict[str, str]:
-    """First occurrence of each wanted `Label: value` line; later duplicates are ignored."""
+def _fields(content: str, wanted: tuple[str, ...]) -> tuple[dict[str, str], tuple[str, ...]]:
+    """Label values. Two different values for one label are a conflict and the field is unset."""
     found: dict[str, str] = {}
+    conflicts: list[str] = []
     for line in content.split("\n"):
-        m = FIELD_RE.match(line.rstrip("\r"))
-        if m and m.group(1).lower() in wanted and m.group(1).lower() not in found:
-            found[m.group(1).lower()] = m.group(2)
-    return found
+        match = FIELD_RE.match(line.rstrip("\r"))
+        if not match or match.group(1).lower() not in wanted:
+            continue
+        label, value = match.group(1).lower(), match.group(2)
+        if label not in found and label not in conflicts:
+            found[label] = value
+        elif label in found and found[label] != value:
+            conflicts.append(label)
+            del found[label]
+    return found, tuple(conflicts)
+
+
+def _unique_capture(
+    pattern: re.Pattern[str], content: str, *, keep_period: bool = False
+) -> tuple[str | None, bool]:
+    """First unique capture, or (None, True) when the pattern matches two different values."""
+    found: list[str] = []
+    for match in pattern.finditer(content):
+        raw = match.group(1).rstrip("\r").strip()
+        value = raw if keep_period else _strip_trailing_period(raw)
+        if value not in found:
+            found.append(value)
+    if len(found) > 1:
+        return None, True
+    return (found[0] if found else None), False
 
 
 def _iso_date(value: str, label: str, where: str) -> date:
@@ -138,19 +161,54 @@ def parse_file(path: Path, folder: str) -> ParsedFile:
     digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
 
     if folder == "documents":
-        meta = _fields(content, DOCUMENT_FIELDS)
+        meta, conflicts = _fields(content, DOCUMENT_FIELDS)
         case_id, _, doc_suffix = source_id.rpartition("-")
         suffix_upper = doc_suffix.upper()
         if suffix_upper not in KNOWN_DOC_SUFFIXES:
             warnings.append(f"unrecognized_document_suffix:{source_id}")
         doc_type = doc_suffix.lower() or None
-        review_date = (
-            _iso_date(meta["review date"], "Review date", where) if "review date" in meta else None
-        )
-        identity_meta = _fields(content, IDENTITY_FIELDS) if suffix_upper == "IDENTITY" else {}
+        review_unreadable = False
+        if "review date" in meta:
+            try:
+                review_date = date.fromisoformat(meta["review date"])
+            except ValueError:
+                review_date = None
+                review_unreadable = True
+        else:
+            review_date = None
+        identity_meta: dict[str, str] = {}
+        if suffix_upper == "IDENTITY":
+            identity_meta, identity_conflicts = _fields(content, IDENTITY_FIELDS)
+            conflicts = tuple(dict.fromkeys((*conflicts, *identity_conflicts)))
         birth_raw = identity_meta.get("birth year")
         birth_year = int(birth_raw) if birth_raw and birth_raw.isdigit() else None
         not_supplied = suffix_upper == "IDENTITY" and _identity_not_supplied(content)
+        filing_jurisdiction, filing_conflict = _unique_capture(FILING_JURISDICTION_RE, content)
+        declared_owner, owner_conflict = _unique_capture(DECLARED_OWNER_RE, content)
+        filing_address, address_conflict = _unique_capture(
+            FILING_ADDRESS_RE, content, keep_period=True
+        )
+        extra = [
+            name
+            for name, flagged in (
+                ("filing jurisdiction", filing_conflict),
+                ("declared owner", owner_conflict),
+                ("filing address", address_conflict),
+            )
+            if flagged
+        ]
+        conflicts = tuple(dict.fromkeys((*conflicts, *extra)))
+        company_name = meta.get("company name")
+        if suffix_upper == "CORPORATE":
+            prose = PROSE_COMPANY_RE.search(content)
+            prose_name = _strip_trailing_period(prose.group(1).strip()) if prose else None
+            if "company name" in conflicts:
+                company_name = None
+            elif company_name and prose_name and company_name != prose_name:
+                conflicts = tuple(dict.fromkeys((*conflicts, "company name")))
+                company_name = None
+            else:
+                company_name = company_name or prose_name
         document = Document(
             source_id,
             case_id or None,
@@ -159,13 +217,17 @@ def parse_file(path: Path, folder: str) -> ParsedFile:
             review_date,
             meta.get("entity reference"),
             meta.get("identity document"),
-            filing_jurisdiction=_label_value(FILING_JURISDICTION_RE, content),
-            declared_owner=_label_value(DECLARED_OWNER_RE, content),
-            filing_address=_label_value(FILING_ADDRESS_RE, content, keep_period=True),
+            filing_jurisdiction=filing_jurisdiction,
+            declared_owner=declared_owner,
+            filing_address=filing_address,
             holder_name=None if not_supplied else identity_meta.get("name"),
             birth_year=None if not_supplied else birth_year,
             document_reference=None if not_supplied else identity_meta.get("document reference"),
             identity_not_supplied=not_supplied,
+            company_name=company_name,
+            label_conflicts=conflicts,
+            empty=not content.strip(),
+            review_date_unreadable=review_unreadable,
         )
         source = Source(source_id, "document", UNTRUSTED, title, str(path), content, digest)
         return ParsedFile(
@@ -175,7 +237,7 @@ def parse_file(path: Path, folder: str) -> ParsedFile:
             warnings=tuple(warnings),
         )
 
-    meta = _fields(content, POLICY_FIELDS)
+    meta, _policy_conflicts = _fields(content, POLICY_FIELDS)
     if not meta:  # e.g. KYC-SCOPE-01: a procedure that applies to every case
         source = Source(source_id, "procedure", TRUSTED, title, str(path), content, digest)
         return ParsedFile(

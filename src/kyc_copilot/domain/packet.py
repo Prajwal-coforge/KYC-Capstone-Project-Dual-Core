@@ -5,6 +5,8 @@ Domain layer: contracts + same-layer rules only. Store I/O goes through Knowledg
 
 from __future__ import annotations
 
+import re
+
 from kyc_copilot.contracts.address import compare_addresses
 from kyc_copilot.contracts.interfaces import KnowledgeStore, Narrator
 from kyc_copilot.contracts.models import CaseEvidence, Decision, Document, Source
@@ -26,6 +28,9 @@ SCOPE_PHRASES = {
         "A missing registry response means owner_names is null, "
         "not an empty list or assumed owners."
     ),
+    "registry_not_active": "unavailable registry",
+    "owners_not_established": "not an empty list or assumed owners.",
+    "customer_fields_missing": "Review date determines the applicable policy version.",
     "identity_document_missing": "Missing identity document is identity_document.",
     "address_mismatch": (
         "An address discrepancy requires address_explanation; never silently choose a source."
@@ -42,6 +47,7 @@ SCOPE_PHRASES = {
 }
 RETRY_PHRASE = "Retry failed tools at most twice (three total attempts), then stop and escalate."
 COMPLETE_PHRASE = "otherwise complete_review."
+_INSTRUCTION_LINE = re.compile(r"important|ignore previous|\bapprove\b", re.IGNORECASE)
 
 
 def _line(content: str, prefix: str) -> str | None:
@@ -86,23 +92,51 @@ def _follow_up(field: str, decision: Decision, evidence: CaseEvidence) -> str:
     if field == "address_explanation":
         c = evidence.customer.get("registered_address") if evidence.customer else None
         r = evidence.registry.get("registered_address") if evidence.registry else None
-        f = evidence.filing_address
-        filing = f if isinstance(f, str) and f.strip() else None
+        filing = evidence.filing_address if isinstance(evidence.filing_address, str) else None
+        customer = c.strip() if isinstance(c, str) and c.strip() else None
+        registry = r.strip() if isinstance(r, str) and r.strip() else None
+        filing = filing.strip() if isinstance(filing, str) and filing.strip() else None
         if compare_addresses(c, r) in ("same", "normalized_same") and filing is not None:
+            agreed = customer or registry
             return (
-                f"Our customer and registry records list '{c}' but the corporate filing "
+                f"Our customer and registry records list '{agreed}' but the corporate filing "
                 f"lists '{filing}'. Please confirm which address is current and provide "
                 "supporting evidence."
             )
-        if filing is not None:
+        if customer is not None and registry is not None:
+            if filing is not None:
+                return (
+                    f"Our records list the registered address as '{customer}' while the registry "
+                    f"lists '{registry}' and the corporate filing lists '{filing}'. "
+                    "Please confirm which address is current and provide supporting evidence."
+                )
             return (
-                f"Our records list the registered address as '{c}' while the registry "
-                f"lists '{r}' and the corporate filing lists '{filing}'. "
-                "Please confirm which address is current and provide supporting evidence."
+                f"Our records list the registered address as '{customer}' while the registry "
+                f"lists '{registry}'. Please confirm which address is current and provide "
+                "supporting evidence."
             )
+        missing = []
+        if customer is None:
+            missing.append("customer record")
+        if registry is None:
+            missing.append("registry")
+        supplied = []
+        if customer is not None:
+            supplied.append(f"the customer record lists '{customer}'")
+        if registry is not None:
+            supplied.append(f"the registry lists '{registry}'")
+        if filing is not None:
+            supplied.append(f"the corporate filing lists '{filing}'")
+        gap = "The " + " and the ".join(missing) + " did not supply an address."
+        detail = ""
+        if supplied:
+            detail = " " + supplied[0][0].upper() + supplied[0][1:]
+            if len(supplied) > 1:
+                detail += " while " + " and ".join(supplied[1:])
+            detail += "."
         return (
-            f"Our records list the registered address as '{c}' while the registry lists '{r}'. "
-            "Please confirm which address is current and provide supporting evidence."
+            f"{gap}{detail} Please confirm which address is current and provide "
+            "supporting evidence."
         )
     return f"Please provide the missing {field.replace('_', ' ')} for {subject}."
 
@@ -237,6 +271,14 @@ def build_citations(
                 ("EDD monthly threshold:", "Monthly threshold for enhanced due diligence"),
             ):
                 candidates.append((claim, d.policy.source_id, _line(policy.content, prefix)))
+            if "currency_mismatch" in d.reasons:
+                candidates.append(
+                    (
+                        "Currency must be XCR",
+                        d.policy.source_id,
+                        _field_quote(policy.content, "Currency is the invented XCR crown."),
+                    )
+                )
 
     if ev.customer:
         sid = ev.customer["source_id"]
@@ -264,6 +306,13 @@ def build_citations(
             candidates.append(("Registry owner", sid, json_fragment("name", name)))
 
     _append_conflict_document_citations(candidates, d, ev, store)
+    for source in store.case_documents(ev.case_id):
+        for raw in source.content.split("\n"):
+            line = raw.rstrip("\r")
+            if line.strip() and _INSTRUCTION_LINE.search(line):
+                candidates.append(
+                    ("Untrusted instruction in a case document", source.source_id, line)
+                )
 
     if ev.screening:
         sid = ev.screening["source_id"]

@@ -7,6 +7,7 @@ This database belongs to the application. It is separate from the mock service's
 from __future__ import annotations
 
 import hashlib
+import json
 import sqlite3
 from collections.abc import Iterable
 from datetime import UTC, date, datetime
@@ -16,7 +17,7 @@ from kyc_copilot.contracts.models import Chunk, Document, ParsedFile, Policy, So
 
 # Bump when the schema changes. Everything stored is derived (re-ingested or re-fetched), so an
 # older database is simply rebuilt.
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 TABLES = ("tool_evidence", "chunks", "documents", "policies", "sources", "meta")
 INGESTED_KINDS = ("policy", "procedure", "document")
 
@@ -55,7 +56,11 @@ CREATE TABLE IF NOT EXISTS documents(
   holder_name TEXT,
   birth_year INTEGER,
   document_reference TEXT,
-  identity_not_supplied INTEGER NOT NULL DEFAULT 0
+  identity_not_supplied INTEGER NOT NULL DEFAULT 0,
+  company_name TEXT,
+  label_conflicts TEXT NOT NULL DEFAULT '[]',
+  empty INTEGER NOT NULL DEFAULT 0,
+  review_date_unreadable INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_documents_case ON documents(case_id);
 CREATE TABLE IF NOT EXISTS chunks(
@@ -193,7 +198,7 @@ class SqliteKnowledgeStore:
         if item.document:
             d = item.document
             self.db.execute(
-                "INSERT INTO documents VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO documents VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     d.source_id,
                     d.case_id,
@@ -209,6 +214,10 @@ class SqliteKnowledgeStore:
                     d.birth_year,
                     d.document_reference,
                     int(d.identity_not_supplied),
+                    d.company_name,
+                    json.dumps(list(d.label_conflicts)),
+                    int(d.empty),
+                    int(d.review_date_unreadable),
                 ),
             )
         self.db.executemany(
@@ -313,6 +322,10 @@ class SqliteKnowledgeStore:
             r["birth_year"],
             r["document_reference"],
             bool(r["identity_not_supplied"]),
+            r["company_name"],
+            tuple(json.loads(r["label_conflicts"] or "[]")),
+            bool(r["empty"]),
+            bool(r["review_date_unreadable"]),
         )
 
     def save_tool_evidence(self, case_id: str, tool: str, source_id: str, content: str) -> None:

@@ -65,10 +65,14 @@ def fetch_case_links(api_url: str, timeout: float = 5.0) -> dict[str, dict]:
     }
 
 
-def ingest(data_dir: Path, store: KnowledgeStore, api_url: str | None = None) -> dict:
-    case_links = None
+def ingest(
+    data_dir: Path,
+    store: KnowledgeStore,
+    api_url: str | None = None,
+    case_links: dict | None = None,
+) -> dict:
     extra_warnings: list[str] = []
-    if api_url:
+    if case_links is None and api_url:
         try:
             case_links = fetch_case_links(api_url)
         except (OSError, urllib.error.URLError, ValueError, KeyError) as exc:
