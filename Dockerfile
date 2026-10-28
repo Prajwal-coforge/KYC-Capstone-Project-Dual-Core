@@ -21,6 +21,11 @@ RUN uv sync --locked
 
 COPY . .
 
+# The cloud task runs as kyc. Compose stays root so a laptop bind-mount can still be written.
+RUN useradd --create-home --uid 1000 --shell /usr/sbin/nologin kyc \
+    && mkdir -p /app/.state /out \
+    && chown -R kyc:kyc /app /opt/venv /out
+
 # Default: the mock enterprise service. It binds to loopback only (by design), so other
 # containers must share its network namespace; see docker-compose.yml.
 CMD ["uv", "run", "--locked", "python", "tools/runtime.py", "serve", "--port", "8766"]

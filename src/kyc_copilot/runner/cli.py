@@ -188,6 +188,10 @@ def main(argv: list[str] | None = None) -> None:
         store_cm = open_knowledge_store(target)
     except ValueError as exc:
         sys.exit(str(exc))
+    except Exception:
+        sys.exit(
+            "The knowledge store could not be opened. Nothing was written to another database."
+        )
 
     client = ToolClient(a.api_url)
     with store_cm as store:
