@@ -47,6 +47,7 @@ def read_exact(path: Path) -> str:
 
 
 def _fields(content: str, wanted: tuple[str, ...]) -> dict[str, str]:
+    """First occurrence of each wanted `Label: value` line; later duplicates are ignored."""
     found: dict[str, str] = {}
     for line in content.split("\n"):
         m = FIELD_RE.match(line.rstrip("\r"))
@@ -56,6 +57,7 @@ def _fields(content: str, wanted: tuple[str, ...]) -> dict[str, str]:
 
 
 def _iso_date(value: str, label: str, where: str) -> date:
+    """Parse YYYY-MM-DD or stop the ingest with a file-scoped error."""
     try:
         return date.fromisoformat(value)
     except ValueError as exc:
@@ -63,6 +65,7 @@ def _iso_date(value: str, label: str, where: str) -> date:
 
 
 def _number(value: str, where: str) -> int | float:
+    """Parse EDD threshold as int preferentially, else float; otherwise stop ingest."""
     try:
         return int(value)
     except ValueError:
@@ -74,12 +77,14 @@ def _number(value: str, where: str) -> int | float:
 
 
 def _strip_trailing_period(value: str) -> str:
+    """Drop a single trailing period often left by prose-style field lines."""
     return value.rstrip().removesuffix(".").rstrip()
 
 
 def _label_value(
     pattern: re.Pattern[str], content: str, *, keep_period: bool = False
 ) -> str | None:
+    """Extract the first regex capture for a labeled field, or None if absent."""
     m = pattern.search(content)
     if not m:
         return None
@@ -88,6 +93,7 @@ def _label_value(
 
 
 def _identity_not_supplied(content: str) -> bool:
+    """True when identity prose says the document was not supplied or not included."""
     lowered = content.casefold()
     return any(marker in lowered for marker in NOT_SUPPLIED_MARKERS)
 

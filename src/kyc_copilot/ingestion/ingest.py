@@ -19,12 +19,15 @@ DEFAULT_MANIFEST = Path(__file__).resolve().parents[3] / "contracts" / "policy_m
 
 
 class _IngestStore(Protocol):
-    def replace_all(self, parsed: Any, meta: dict[str, str]) -> dict[str, list[str]]: ...
+    def replace_all(self, parsed: Any, meta: dict[str, str]) -> dict[str, list[str]]:
+        """Atomically replace store contents with parsed files; return add/update/remove ids."""
 
-    def counts(self) -> dict[str, int]: ...
+    def counts(self) -> dict[str, int]:
+        """Row totals used in the ingest summary payload."""
 
 
 def discover(data_dir: Path) -> list[ParsedFile]:
+    """Parse every policy/document markdown under data_dir; require at least one procedure."""
     parsed: list[ParsedFile] = []
     for folder in ("policies", "documents"):
         directory = data_dir / folder
@@ -37,6 +40,7 @@ def discover(data_dir: Path) -> list[ParsedFile]:
 
 
 def load_policy_manifest(manifest_path: Path) -> dict[str, str]:
+    """Load source_id -> SHA-256 map used to gate which policy files may be active."""
     raw = json.loads(manifest_path.read_text(encoding="utf-8"))
     policies = raw.get("policies")
     if not isinstance(policies, dict) or not policies:
@@ -96,6 +100,7 @@ def apply_case_links(
 
 
 def policy_overlap_warnings(parsed: list[ParsedFile]) -> list[str]:
+    """Warn when two policies share entity/jurisdiction with overlapping effective windows."""
     policies = [p.policy for p in parsed if p.policy]
     out: list[str] = []
     for i, a in enumerate(policies):
@@ -110,6 +115,7 @@ def policy_overlap_warnings(parsed: list[ParsedFile]) -> list[str]:
 
 
 def manifest_hash(parsed: list[ParsedFile]) -> str:
+    """Stable digest of source_id:sha256 pairs so identical fixture sets are detectable."""
     lines = sorted(f"{p.source.source_id}:{p.source.sha256}" for p in parsed)
     return hashlib.sha256("\n".join(lines).encode()).hexdigest()
 
@@ -121,6 +127,7 @@ def ingest(
     manifest_path: Path | None = DEFAULT_MANIFEST,
     schema_version: str = "2",
 ) -> dict:
+    """Discover, guard, optionally re-link, and replace the store; return counts and warnings."""
     parsed = discover(data_dir)
     warnings = [w for p in parsed for w in p.warnings] + policy_overlap_warnings(parsed)
     if manifest_path is not None:

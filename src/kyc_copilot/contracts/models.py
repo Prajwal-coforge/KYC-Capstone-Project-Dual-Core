@@ -86,6 +86,7 @@ class ToolResult:
 
     @property
     def source_id(self) -> str | None:
+        """Tool response source_id when the call succeeded with a payload."""
         return self.payload.get("source_id") if self.payload else None
 
 

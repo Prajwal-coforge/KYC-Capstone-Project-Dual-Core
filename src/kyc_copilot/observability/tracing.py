@@ -76,6 +76,7 @@ def metrics(decision_events: list[dict]) -> dict:
 
 
 def _percentile(values: list[float], q: float) -> float | None:
+    """Nearest-rank percentile; None when the window is empty."""
     if not values:
         return None
     ordered = sorted(values)
@@ -89,11 +90,13 @@ class JsonlTrace:
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def write(self, event: dict) -> None:
+        """Append one redacted JSONL event; never persist restricted keys."""
         clean = redact(event)
         line = json.dumps(clean, sort_keys=True, ensure_ascii=False)
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(line + "\n")
 
     def write_run(self, run: CaseRun) -> None:
+        """Append tool-call and decision events for one finished case run."""
         for event in trace_events(run):
             self.write(event)
