@@ -137,14 +137,12 @@ def _scratch() -> _Scratch:
 
 
 def _number(value: object) -> int | float | None:
-    """Accept finite int/float only; bool, NaN, and infinity are not amounts."""
+    """Accept a finite int or float. Bool and non-finite floats never count as amounts."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
     if isinstance(value, float) and not math.isfinite(value):
         return None
     return value
-
-
 def _registry_active(registry: dict[str, Any] | None) -> bool:
     """A registry body is usable only when it says registry_status is active."""
     return isinstance(registry, dict) and registry.get("registry_status") == "active"
