@@ -109,7 +109,8 @@ class MetricAndRuleEdges(unittest.TestCase):
         decision = decide(ev, store.find_policies)
         self.assertIn("screening_unreadable", decision.reasons)
         self.assertEqual(decision.address_check, "unknown")
-        self.assertIn("address_explanation", decision.missing_information)
+        self.assertNotIn("address_explanation", decision.missing_information)
+        self.assertEqual(decision.routing, "escalate")
 
     def test_renamed_case_id_still_completes(self):
         store = SqliteKnowledgeStore(":memory:")
@@ -388,14 +389,18 @@ class CliEdges(unittest.TestCase):
             path.write_text("[]\n")
             with self.assertRaises(ValueError):
                 load_review_ledger(path)
-            path.write_text(json.dumps({"C1": []}))
+            packet = {
+                "case_id": "C1",
+                "facts": {"entity_id": "ENT-1", "review_date": "2026-10-01"},
+            }
+            key = "ENT-1|2026-10-01"
+            path.write_text(json.dumps({key: []}))
             with self.assertRaises(ValueError):
-                submit_drafts(_Client({}), [{"case_id": "C1"}], path)
-            packet = {"case_id": "C1"}
+                submit_drafts(_Client({}), [packet], path)
             from kyc_copilot.runner.cli import draft_hash
 
             digest = draft_hash(packet)
-            path.write_text(json.dumps({"C1": {digest: {"draft_hash": "no", "review_id": "r"}}}))
+            path.write_text(json.dumps({key: {digest: {"draft_hash": "no", "review_id": "r"}}}))
             with self.assertRaises(ValueError):
                 submit_drafts(_Client({}), [packet], path)
 

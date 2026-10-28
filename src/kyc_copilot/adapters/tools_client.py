@@ -221,7 +221,9 @@ class ToolClient:
     def list_cases(self) -> list[dict]:
         """GET /v1/cases with the shared max-3 policy."""
         body = self._call_json("GET", "/v1/cases")
-        cases = body.get("cases") if isinstance(body, dict) else None
+        if not isinstance(body, dict):
+            raise ServiceError("invalid_response")
+        cases = body.get("cases")
         if not isinstance(cases, list) or not all(isinstance(item, dict) for item in cases):
             raise ServiceError("case_list_invalid")
         return cases

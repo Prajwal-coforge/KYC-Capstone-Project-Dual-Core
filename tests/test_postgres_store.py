@@ -19,10 +19,11 @@ def _file(
     policy: Policy | None = None,
     document: Document | None = None,
     chunks: tuple[Chunk, ...] = (),
+    sha: str = "abc",
 ) -> ParsedFile:
     trust = "trusted" if kind in ("policy", "procedure") else "untrusted"
     return ParsedFile(
-        Source(source_id, kind, trust, source_id, f"mem:{source_id}", content, "abc"),
+        Source(source_id, kind, trust, source_id, f"mem:{source_id}", content, sha),
         policy=policy,
         document=document,
         chunks=chunks,
@@ -135,8 +136,67 @@ class PostgresLiveTests(unittest.TestCase):
         self.store.replace_all([_file("DOC", content="doc")], {"manifest_sha256": "old"})
         self.store.save_tool_evidence("C", "screening", "C-SCREENING", '{"n": 1}')
         self.assertTrue(self.store.verify_quote("C-SCREENING", '"n": 1'))
-        self.store.replace_all([_file("DOC", content="doc")], {"manifest_sha256": "new"})
+        second = self.store.replace_all([_file("DOC", content="doc")], {"manifest_sha256": "new"})
+        self.assertIn("DOC", second["unchanged"])
         self.assertIsNone(self.store.get_source("C-SCREENING"))
+        updated = self.store.replace_all(
+            [_file("DOC", content="doc-2", sha="bbb")],
+            {"manifest_sha256": "new"},
+        )
+        self.assertIn("DOC", updated["updated"])
+
+    def test_readers_and_a_string_review_date(self) -> None:
+        self.store.replace_all(
+            [
+                _file("SCOPE", "procedure", content="scope text"),
+                _file(
+                    "C-INTAKE",
+                    document=Document(
+                        "C-INTAKE",
+                        "C",
+                        "intake",
+                        True,
+                        date(2026, 6, 15),
+                        "ENT-1",
+                        "attached",
+                        label_conflicts=("company name",),
+                        empty=False,
+                        review_date_unreadable=False,
+                    ),
+                    chunks=(Chunk("C-INTAKE", 0, 1, 0, 4, "body"),),
+                ),
+            ],
+            {"manifest_sha256": "readers"},
+        )
+        self.assertEqual(self.store.get_procedure("SCOPE").content, "scope text")
+        self.assertIsNone(self.store.get_procedure("missing"))
+        self.assertEqual(
+            [s.source_id for s in self.store.case_documents("C")],
+            ["C-INTAKE"],
+        )
+        self.assertEqual(self.store.get_chunks("C-INTAKE")[0].text, "body")
+        self.assertIsNone(self.store.get_source("missing"))
+        self.assertIsNone(self.store.get_document("missing"))
+        self.assertFalse(self.store.verify_quote("missing", "body"))
+        self.assertEqual(self.store.get_document("C-INTAKE").label_conflicts, ("company name",))
+        found = self.store.find_policies("limited_company", "Alder", "2026-06-15")
+        self.assertEqual(found, [])
+        counts = self.store.counts()
+        self.assertEqual(counts["documents"], 1)
+        self.assertEqual(counts["chunks"], 1)
+        self.assertGreaterEqual(counts["sources"], 1)
+
+    def test_context_manager_closes_and_a_stale_schema_is_rebuilt(self) -> None:
+        dsn = os.environ["KYC_DATABASE_URL"]
+        with PostgresKnowledgeStore(dsn) as store:
+            store.conn.execute(
+                "UPDATE meta SET value = %s WHERE key = %s",
+                ("0", "schema_version"),
+            )
+        rebuilt = PostgresKnowledgeStore(dsn)
+        self.addCleanup(rebuilt.close)
+        self.assertEqual(rebuilt.schema_version, SCHEMA_VERSION)
+        self.assertIsNone(rebuilt.get_source("C-INTAKE"))
 
 
 if __name__ == "__main__":
