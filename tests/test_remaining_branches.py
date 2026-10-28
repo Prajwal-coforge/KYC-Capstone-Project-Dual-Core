@@ -458,6 +458,8 @@ class CliEdges(unittest.TestCase):
             self.assertIn("unreadable", str(caught.exception))
 
     def test_ingest_cli_and_module_entries(self):
+        # CI sets KYC_DATABASE_URL for the live Postgres job. An explicit --db
+        # is only used when that variable is absent.
         env = {key: value for key, value in os.environ.items() if key != "KYC_DATABASE_URL"}
         with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, env, clear=True):
             db = Path(tmp) / "app.sqlite"
