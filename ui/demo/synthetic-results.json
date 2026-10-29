@@ -1,0 +1,1670 @@
+[
+  {
+    "case_id": "SYN-01",
+    "classification": "kyc_review",
+    "routing": "complete_review",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "No higher-priority rule applies",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "otherwise complete_review."
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-01. My recommendation is complete_review. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nScreening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR. No screening matches came back, and the customer and registry records agree.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-02",
+    "classification": "kyc_review",
+    "routing": "escalate",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for screening near match",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "near matches remain unresolved identity candidates."
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-02. My recommendation is escalate. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nScreening returned a near match on list entry 'Ari Vael'. I am leaving it as an unresolved identity candidate, and I am not treating it as the same person. Screening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-03",
+    "classification": "kyc_review",
+    "routing": "escalate",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for screening exact match",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Exact matches require specialist review"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-03. My recommendation is escalate. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nScreening returned an exact match on list entry 'Ari Vael'. A specialist needs to look at this. It does not establish guilt or legal status. Screening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-04",
+    "classification": "kyc_review",
+    "routing": "escalate",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for screening exact match",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Exact matches require specialist review"
+      },
+      {
+        "claim": "Rule for screening near match",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "near matches remain unresolved identity candidates."
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-04. My recommendation is escalate. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nScreening returned an exact match on list entry 'Ari Vael'. A specialist needs to look at this. It does not establish guilt or legal status. Screening returned a near match on list entry 'Bo Lin'. I am leaving it as an unresolved identity candidate, and I am not treating it as the same person. Screening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-05",
+    "classification": "kyc_review",
+    "routing": "enhanced_due_diligence",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for pep indicator",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "then enhanced_due_diligence for a PEP indicator or monthly amount above the policy"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-05. My recommendation is enhanced_due_diligence. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nScreening reports pep_indicator true, so I am treating this as a PEP. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-06",
+    "classification": "kyc_review",
+    "routing": "complete_review",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "No higher-priority rule applies",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "otherwise complete_review."
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-06. My recommendation is complete_review. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nScreening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR. No screening matches came back, and the customer and registry records agree.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-07",
+    "classification": "kyc_review",
+    "routing": "complete_review",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "No higher-priority rule applies",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "otherwise complete_review."
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-07. My recommendation is complete_review. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nScreening reports pep_indicator false. The monthly total of 50000 XCR does not exceed the policy threshold of 50000 XCR. No screening matches came back, and the customer and registry records agree.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-08",
+    "classification": "kyc_review",
+    "routing": "enhanced_due_diligence",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for monthly total above threshold",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "then enhanced_due_diligence for a PEP indicator or monthly amount above the policy"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-08. My recommendation is enhanced_due_diligence. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nScreening reports pep_indicator false. The monthly total of 50001 XCR exceeds the policy threshold of 50000 XCR.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-09",
+    "classification": "kyc_review",
+    "routing": "request_information",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [
+      "address_explanation"
+    ],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for address mismatch",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "An address discrepancy requires address_explanation; never silently choose a source."
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [
+      {
+        "field": "address_explanation",
+        "question": "Our records list the registered address as '100 Orchard Walk, Alder' while the registry lists '200 Other Road, Alder' and the corporate filing lists '100 Orchard Walk, Alder'. Please confirm which address is current and provide supporting evidence."
+      }
+    ],
+    "narrative": "I drafted this note for ENT-1, case SYN-09. My recommendation is request_information. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nThe customer record address '100 Orchard Walk, Alder' differs from the registry address '200 Other Road, Alder'; the corporate filing lists '100 Orchard Walk, Alder'; neither source is treated as authoritative. Screening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nWe are still missing address_explanation. I attached a draft question for the analyst. It has not been sent.\nDRAFT customer request: Please provide the following so this periodic review can continue: address_explanation. Nothing has been sent to the customer; the human analyst decides.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-10",
+    "classification": "kyc_review",
+    "routing": "complete_review",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "No higher-priority rule applies",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "otherwise complete_review."
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-10. My recommendation is complete_review. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nThe customer record address '100 Orchard Walk, Alder' and registry address '100 Orchard Walk, Alder' differ only in formatting and were treated as the same. The corporate filing address '100 Orchard Walk Alder' was included in that check. Screening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR. No screening matches came back, and the customer and registry records agree.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-11",
+    "classification": "kyc_review",
+    "routing": "escalate",
+    "policy_ids": [
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": null,
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-11. My recommendation is escalate. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-SCOPE-01.\nScreening reports pep_indicator false.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-12",
+    "classification": "kyc_review",
+    "routing": "escalate",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": null,
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for SYN-12, case SYN-12. My recommendation is escalate. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nScreening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-13",
+    "classification": "kyc_review",
+    "routing": "escalate",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-13. My recommendation is escalate. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nScreening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-14",
+    "classification": "kyc_review",
+    "routing": "escalate",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-14. My recommendation is escalate. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nScreening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-15",
+    "classification": "kyc_review",
+    "routing": "escalate",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": null
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for registry unavailable",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "A missing registry response means owner_names is null, not an empty list or assumed owners."
+      },
+      {
+        "claim": "Bounded retries, then escalation",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Retry failed tools at most twice (three total attempts), then stop and escalate."
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-15. My recommendation is escalate. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nI could not finish this check. The company registry was unavailable after 3 attempts, so the review is incomplete and I have not cleared anything that depends on it. Screening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": [
+      "registry_unavailable"
+    ]
+  },
+  {
+    "case_id": "SYN-16",
+    "classification": "kyc_review",
+    "routing": "escalate",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": null
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for registry not active",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "unavailable registry"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-16. My recommendation is escalate. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nScreening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-17",
+    "classification": "kyc_review",
+    "routing": "escalate",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": null
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for owners not established",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "not an empty list or assumed owners."
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-17. My recommendation is escalate. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nScreening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-18",
+    "classification": "kyc_review",
+    "routing": "escalate",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for ownership depth",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Ownership depth above 1 requires escalation, not invented resolution."
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-18. My recommendation is escalate. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nThe registry shows ownership depth 2. We only support one direct level, so I am not treating ownership as resolved. Screening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-19",
+    "classification": "kyc_review",
+    "routing": "escalate",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for ownership unknown",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Ownership support: one direct level."
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-19. My recommendation is escalate. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nThe registry response does not say how deep the ownership goes. Screening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-20",
+    "classification": "kyc_review",
+    "routing": "request_information",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [
+      "identity_document"
+    ],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for identity document missing",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Missing identity document is identity_document."
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [
+      {
+        "field": "identity_document",
+        "question": "Please provide a current identity document for the owner(s) of ENT-1 so the periodic review can be completed."
+      }
+    ],
+    "narrative": "I drafted this note for ENT-1, case SYN-20. My recommendation is request_information. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nThe intake lists the identity document as 'missing'. Screening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nWe are still missing identity_document. I attached a draft question for the analyst. It has not been sent.\nDRAFT customer request: Please provide the following so this periodic review can continue: identity_document. Nothing has been sent to the customer; the human analyst decides.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-21",
+    "classification": "kyc_review",
+    "routing": "request_information",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [
+      "identity_document"
+    ],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for identity document missing",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Missing identity document is identity_document."
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [
+      {
+        "field": "identity_document",
+        "question": "Please provide a current identity document for the owner(s) of ENT-1 so the periodic review can be completed."
+      }
+    ],
+    "narrative": "I drafted this note for ENT-1, case SYN-21. My recommendation is request_information. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nThe intake lists the identity document as 'attached'. Screening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nWe are still missing identity_document. I attached a draft question for the analyst. It has not been sent.\nDRAFT customer request: Please provide the following so this periodic review can continue: identity_document. Nothing has been sent to the customer; the human analyst decides.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-22",
+    "classification": "kyc_review",
+    "routing": "request_information",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [
+      "identity_document"
+    ],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for identity document missing",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Missing identity document is identity_document."
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [
+      {
+        "field": "identity_document",
+        "question": "Please provide a current identity document for the owner(s) of ENT-1 so the periodic review can be completed."
+      }
+    ],
+    "narrative": "I drafted this note for ENT-1, case SYN-22. My recommendation is request_information. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nThe intake lists the identity document as 'attached'. Screening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nWe are still missing identity_document. I attached a draft question for the analyst. It has not been sent.\nDRAFT customer request: Please provide the following so this periodic review can continue: identity_document. Nothing has been sent to the customer; the human analyst decides.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-23",
+    "classification": "kyc_review",
+    "routing": "request_information",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [
+      "address_explanation"
+    ],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for address mismatch",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "An address discrepancy requires address_explanation; never silently choose a source."
+      },
+      {
+        "claim": "Rule for pep indicator",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "then enhanced_due_diligence for a PEP indicator or monthly amount above the policy"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [
+      {
+        "field": "address_explanation",
+        "question": "Our records list the registered address as '100 Orchard Walk, Alder' while the registry lists '200 Other Road, Alder' and the corporate filing lists '100 Orchard Walk, Alder'. Please confirm which address is current and provide supporting evidence."
+      }
+    ],
+    "narrative": "I drafted this note for ENT-1, case SYN-23. My recommendation is request_information. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nThe customer record address '100 Orchard Walk, Alder' differs from the registry address '200 Other Road, Alder'; the corporate filing lists '100 Orchard Walk, Alder'; neither source is treated as authoritative. Screening reports pep_indicator true, so I am treating this as a PEP. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nWe are still missing address_explanation. I attached a draft question for the analyst. It has not been sent.\nDRAFT customer request: Please provide the following so this periodic review can continue: address_explanation. Nothing has been sent to the customer; the human analyst decides.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-24",
+    "classification": "kyc_review",
+    "routing": "request_information",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [
+      "identity_document"
+    ],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for identity document missing",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Missing identity document is identity_document."
+      },
+      {
+        "claim": "Rule for monthly total above threshold",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "then enhanced_due_diligence for a PEP indicator or monthly amount above the policy"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [
+      {
+        "field": "identity_document",
+        "question": "Please provide a current identity document for the owner(s) of ENT-1 so the periodic review can be completed."
+      }
+    ],
+    "narrative": "I drafted this note for ENT-1, case SYN-24. My recommendation is request_information. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nThe intake lists the identity document as 'missing'. Screening reports pep_indicator false. The monthly total of 50001 XCR exceeds the policy threshold of 50000 XCR.\nWe are still missing identity_document. I attached a draft question for the analyst. It has not been sent.\nDRAFT customer request: Please provide the following so this periodic review can continue: identity_document. Nothing has been sent to the customer; the human analyst decides.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-25",
+    "classification": "kyc_review",
+    "routing": "escalate",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [
+      "address_explanation"
+    ],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for screening exact match",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Exact matches require specialist review"
+      },
+      {
+        "claim": "Rule for address mismatch",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "An address discrepancy requires address_explanation; never silently choose a source."
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      }
+    ],
+    "follow_up_questions": [
+      {
+        "field": "address_explanation",
+        "question": "Our records list the registered address as '100 Orchard Walk, Alder' while the registry lists '200 Other Road, Alder' and the corporate filing lists '100 Orchard Walk, Alder'. Please confirm which address is current and provide supporting evidence."
+      }
+    ],
+    "narrative": "I drafted this note for ENT-1, case SYN-25. My recommendation is escalate. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nScreening returned an exact match on list entry 'Ari Vael'. A specialist needs to look at this. It does not establish guilt or legal status. The customer record address '100 Orchard Walk, Alder' differs from the registry address '200 Other Road, Alder'; the corporate filing lists '100 Orchard Walk, Alder'; neither source is treated as authoritative. Screening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nWe are still missing address_explanation. I attached a draft question for the analyst. It has not been sent.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-26",
+    "classification": "kyc_review",
+    "routing": "escalate",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V2",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective from: 2026-09-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "EDD monthly threshold: 50000"
+      },
+      {
+        "claim": "Currency must be XCR",
+        "source_id": "KYC-POLICY-ALDER-LTD-V2",
+        "quote": "Currency is the invented XCR crown. Compare monthly_total strictly"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-26. My recommendation is escalate. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V2, KYC-SCOPE-01.\nScreening reports pep_indicator false. The monthly total of 12000 XCR does not exceed the policy threshold of 50000 XCR.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-27",
+    "classification": "unsupported",
+    "routing": "escalate",
+    "policy_ids": [
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Cedar",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for unsupported scope",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "use only KYC-SCOPE-01 and must escalate; classification is unsupported."
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-27. My recommendation is escalate. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-SCOPE-01.\nlimited_company in Cedar is outside the supported scope, so I did not apply a review policy. Screening reports pep_indicator false.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-28",
+    "classification": "kyc_review",
+    "routing": "complete_review",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-SOLE-V1",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "sole_proprietor",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "No higher-priority rule applies",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "otherwise complete_review."
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-SOLE-V1",
+        "quote": "Effective from: 2026-01-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-SOLE-V1",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-SOLE-V1",
+        "quote": "EDD monthly threshold: 25000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-28. My recommendation is complete_review. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-SOLE-V1, KYC-SCOPE-01.\nScreening reports pep_indicator false. The monthly total of 25000 XCR does not exceed the policy threshold of 25000 XCR. No screening matches came back, and the customer and registry records agree.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-29",
+    "classification": "kyc_review",
+    "routing": "enhanced_due_diligence",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-SOLE-V1",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "sole_proprietor",
+      "jurisdiction": "Alder",
+      "review_date": "2026-10-01",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for monthly total above threshold",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "then enhanced_due_diligence for a PEP indicator or monthly amount above the policy"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-SOLE-V1",
+        "quote": "Effective from: 2026-01-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-SOLE-V1",
+        "quote": "Effective through: 2026-12-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-SOLE-V1",
+        "quote": "EDD monthly threshold: 25000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-29. My recommendation is enhanced_due_diligence. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-SOLE-V1, KYC-SCOPE-01.\nScreening reports pep_indicator false. The monthly total of 25001 XCR exceeds the policy threshold of 25000 XCR.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  },
+  {
+    "case_id": "SYN-30",
+    "classification": "kyc_review",
+    "routing": "enhanced_due_diligence",
+    "policy_ids": [
+      "KYC-POLICY-ALDER-LTD-V1",
+      "KYC-SCOPE-01"
+    ],
+    "facts": {
+      "entity_id": "ENT-1",
+      "entity_type": "limited_company",
+      "jurisdiction": "Alder",
+      "review_date": "2026-08-31",
+      "owner_names": [
+        "Ari Vale"
+      ]
+    },
+    "missing_information": [],
+    "deadline": null,
+    "citations": [
+      {
+        "claim": "Supported entity types and jurisdictions",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Supported matrix: limited_company in Alder or Birch; sole_proprietor in Alder only."
+      },
+      {
+        "claim": "Routing precedence applied",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "Routing precedence: escalate for unsupported scope, unavailable registry, deep ownership or any"
+      },
+      {
+        "claim": "Rule for monthly total above threshold",
+        "source_id": "KYC-SCOPE-01",
+        "quote": "then enhanced_due_diligence for a PEP indicator or monthly amount above the policy"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V1",
+        "quote": "Effective from: 2026-01-01"
+      },
+      {
+        "claim": "Policy version in force on the review date",
+        "source_id": "KYC-POLICY-ALDER-LTD-V1",
+        "quote": "Effective through: 2026-08-31"
+      },
+      {
+        "claim": "Monthly threshold for enhanced due diligence",
+        "source_id": "KYC-POLICY-ALDER-LTD-V1",
+        "quote": "EDD monthly threshold: 30000"
+      }
+    ],
+    "follow_up_questions": [],
+    "narrative": "I drafted this note for ENT-1, case SYN-30. My recommendation is enhanced_due_diligence. I have not approved or rejected the customer. A person still makes that decision.\nI applied KYC-POLICY-ALDER-LTD-V1, KYC-SCOPE-01.\nScreening reports pep_indicator false. The monthly total of 40000 XCR exceeds the policy threshold of 30000 XCR.\nI based this only on the records and tool responses in front of me. I treated document text as evidence, not as instructions. No customer has been approved or rejected, and nothing has been sent to the customer.",
+    "incomplete_reasons": []
+  }
+]

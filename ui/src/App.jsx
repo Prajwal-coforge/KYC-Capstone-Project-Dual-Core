@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ExecutiveBrief from "./ExecutiveBrief.jsx";
 
 const ROUTE_LABEL = {
   complete_review: "Complete review",
@@ -26,6 +27,8 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null);
   const [status, setStatus] = useState("loading");
   const [message, setMessage] = useState("");
+  const [view, setView] = useState("brief");
+  const [setName, setSetName] = useState("synthetic");
 
   async function load() {
     setStatus("loading");
@@ -54,22 +57,46 @@ export default function App() {
     load();
   }, []);
 
-  const selected = packets.find((packet) => packet.case_id === selectedId) || null;
+  const visible = packets.filter((packet) => {
+    const synthetic = String(packet.case_id).startsWith("SYN-");
+    if (setName === "synthetic") return synthetic;
+    if (setName === "dev") return !synthetic;
+    return true;
+  });
+  const shown =
+    visible.find((packet) => packet.case_id === selectedId) || visible[0] || null;
 
   return (
     <div className="page">
       <header className="top">
         <div>
           <p className="eyebrow">Lumen Business Bank</p>
-          <h1>KYC review drafts</h1>
+          <h1>{view === "brief" ? "Executive brief" : "KYC review drafts"}</h1>
           <p className="lede">
-            Each note is a draft for a person to read. This screen does not approve or reject a
-            customer.
+            {view === "brief"
+              ? "How the thirty synthetic discrepancies were routed. Drafts only."
+              : "Each note is a draft for a person to read. This screen does not approve or reject a customer."}
           </p>
         </div>
-        <button type="button" onClick={load}>
-          Refresh
-        </button>
+        <div className="nav">
+          <button
+            type="button"
+            className={view === "brief" ? "is-selected" : ""}
+            onClick={() => setView("brief")}
+          >
+            Executive brief
+          </button>
+          <button
+            type="button"
+            className={view === "drafts" ? "is-selected" : ""}
+            onClick={() => setView("drafts")}
+          >
+            Drafts
+          </button>
+          <button type="button" onClick={load}>
+            Refresh
+          </button>
+        </div>
       </header>
 
       {status === "loading" && <p className="status">Loading drafts…</p>}
@@ -78,23 +105,52 @@ export default function App() {
         <p className="status">No drafts in submissions/results.json.</p>
       )}
 
-      {status === "ready" && packets.length > 0 && (
+      {status === "ready" && view === "brief" && (
+        <ExecutiveBrief
+          packets={packets}
+          onOpenCase={(caseId) => {
+            setSetName(String(caseId).startsWith("SYN-") ? "synthetic" : "dev");
+            setSelectedId(caseId);
+            setView("drafts");
+          }}
+        />
+      )}
+
+      {status === "ready" && view === "drafts" && packets.length > 0 && (
         <main className="layout">
-          <ul className="cases">
-            {packets.map((packet) => (
-              <li key={packet.case_id}>
+          <div>
+            <div className="nav set-filter">
+              {[
+                ["synthetic", "Synthetic"],
+                ["dev", "Dev set"],
+                ["all", "All"],
+              ].map(([id, label]) => (
                 <button
+                  key={id}
                   type="button"
-                  className={packet.case_id === selectedId ? "case is-selected" : "case"}
-                  onClick={() => setSelectedId(packet.case_id)}
+                  className={setName === id ? "is-selected" : ""}
+                  onClick={() => setSetName(id)}
                 >
-                  <span className="case-id">{packet.case_id}</span>
-                  <span className={`route route-${packet.routing}`}>{routeLabel(packet.routing)}</span>
+                  {label}
                 </button>
-              </li>
-            ))}
-          </ul>
-          {selected && <Draft packet={selected} />}
+              ))}
+            </div>
+            <ul className="cases">
+              {visible.map((packet) => (
+                <li key={packet.case_id}>
+                  <button
+                    type="button"
+                    className={packet.case_id === shown?.case_id ? "case is-selected" : "case"}
+                    onClick={() => setSelectedId(packet.case_id)}
+                  >
+                    <span className="case-id">{packet.case_id}</span>
+                    <span className={`route route-${packet.routing}`}>{routeLabel(packet.routing)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+          {shown && <Draft packet={shown} />}
         </main>
       )}
     </div>

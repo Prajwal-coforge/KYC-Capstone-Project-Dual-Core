@@ -80,6 +80,81 @@ h3 {
   max-width: 40rem;
 }
 
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.nav button.is-selected {
+  border-color: #1f6f6a;
+  background: #e7f2f1;
+}
+
+.set-filter {
+  margin-bottom: 0.6rem;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin: 1.2rem 0 0.4rem;
+}
+
+.stat {
+  margin: 0;
+  background: #fff;
+  border: 1px solid #d9ded8;
+  border-radius: 6px;
+  padding: 0.8rem 0.9rem;
+}
+
+.stat strong {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 600;
+}
+
+.stat span {
+  color: #5e6a78;
+  font-size: 0.85rem;
+}
+
+.precedence {
+  margin: 0.4rem 0;
+  padding-left: 1.2rem;
+  max-width: 42rem;
+}
+
+.brief-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.brief-table th,
+.brief-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid #e4e8e3;
+}
+
+.brief-table th {
+  color: #5e6a78;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.linkish {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #1f6f6a;
+  font-weight: 600;
+}
+
 .layout {
   display: grid;
   grid-template-columns: 240px 1fr;
@@ -93,6 +168,8 @@ h3 {
   padding: 0;
   display: grid;
   gap: 0.35rem;
+  max-height: 70vh;
+  overflow: auto;
 }
 
 .case {
@@ -181,7 +258,8 @@ blockquote footer {
 }
 
 @media (max-width: 800px) {
-  .layout {
+  .layout,
+  .stats {
     grid-template-columns: 1fr;
   }
 }
